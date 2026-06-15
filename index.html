@@ -109,7 +109,7 @@
             background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
             border: var(--bd-w-strong, 1.5px) solid var(--line-strong); 
             border-radius: var(--seat-r); 
-            padding: 4px 2px; 
+            padding: 3px 2px; 
             text-align: center; 
             cursor: pointer; 
             display: flex; 
@@ -119,8 +119,9 @@
             height: 100%; 
             box-sizing: border-box; 
             position: relative; 
-            gap: 4px; 
+            gap: 2px; 
             overflow: hidden; 
+            container-type: size; 
             box-shadow: var(--sh-1), inset 0 2px 4px rgba(255, 255, 255, 0.4); 
             transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); 
         }
@@ -130,15 +131,19 @@
             background: var(--surface-2);
         }
         
-        .seat-box .s-id { font-size: 11.5px; color: var(--text-sub); font-weight: 800; line-height: 1; letter-spacing: 0.02em; }
-        .seat-box .s-name { font-size: 15px; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -0.02em; }
+        .seat-box .s-id { font-size: 10px; color: var(--text-sub); font-weight: 800; line-height: 1.05; letter-spacing: 0.01em; white-space: nowrap; }
+        .seat-box .s-name { font-size: 13.5px; font-weight: 900; color: var(--text); line-height: 1.05; letter-spacing: -0.03em; white-space: nowrap; }
         
         /* 기본 태그 (자습중) */
         .seat-box .s-tag { 
-            font-size: 11px; 
+            font-size: 10px; 
             font-weight: 900; 
-            padding: 4px 8px; 
+            padding: 2px 7px; 
             border-radius: var(--tag-r, 6px); 
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis; 
             background: var(--surface); 
             color: var(--text-sub); 
             line-height: 1; 
@@ -247,9 +252,9 @@
         .cal-sat { color: var(--sch-bar); }
         
         /* 메모장 모달 */
-        .memo-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); justify-content:center; align-items:center; z-index:2000; opacity: 0; transition: 0.2s ease;}
+        .memo-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:2000; opacity: 0; transition: opacity 0.08s linear;}
         .memo-modal-overlay.show { display: flex; opacity: 1; }
-        .memo-modal-box { background: var(--surface); border: var(--bd-w, 1px) solid var(--line); border-radius: var(--radius-lg, 16px); width:92%; max-width:440px; box-shadow: var(--sh-2); display:flex; flex-direction:column; overflow:hidden; transform: scale(0.95) translateY(10px); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .memo-modal-box { background: var(--surface); border: var(--bd-w, 1px) solid var(--line); border-radius: var(--radius-lg, 16px); width:92%; max-width:440px; box-shadow: var(--sh-2); display:flex; flex-direction:column; overflow:hidden; transform: scale(0.98); transition: transform 0.08s ease; }
         .memo-modal-overlay.show .memo-modal-box { transform: scale(1) translateY(0); }
         
         .memo-modal-head { background: var(--accent); color: var(--accent-tx); padding: 14px 18px; font-size: 16px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
@@ -257,7 +262,7 @@
         .memo-modal-head button:active { transform: scale(0.9); }
         .memo-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
         .memo-date-label { font-size: 13px; font-weight: bold; color: var(--text-sub); }
-        .memo-textarea { width: 100%; height: 160px; border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 10px); padding: 12px; font-size: 15px; font-family: inherit; resize: none; box-sizing: border-box; background: var(--surface-2); color: var(--text); line-height: 1.6; transition: 0.2s; }
+        .memo-textarea { width: 100%; height: 200px; border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 10px); padding: 12px; font-size: 15px; font-family: inherit; resize: none; box-sizing: border-box; background: var(--surface-2); color: var(--text); line-height: 1.6; transition: 0.2s; }
         .memo-textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
         .memo-modal-foot { display: flex; gap: 8px; padding: 0 18px 16px; }
         .memo-save-btn { flex: 1; background: var(--accent); color: var(--accent-tx); border: none; padding: 13px; border-radius: var(--radius-sm, 8px); font-size: 15px; font-weight: 900; cursor: pointer; transition: 0.2s; box-shadow: var(--sh-1); }
@@ -455,6 +460,35 @@
             cursor:pointer; box-shadow:var(--sh-1); z-index:501; display:flex; align-items:center; justify-content:center; transition: 0.2s;}
         .theme-fab:active { transform: scale(0.9); }
 
+    
+        /* [v1.5] 좌석칸 반응형: 칸 높이에 따라 글자 크기 자동 — 학번/이름/상태 항상 표시 */
+        @container (min-height: 56px) {
+            .seat-box .s-id   { font-size: 11px; }
+            .seat-box .s-name { font-size: 15px; }
+            .seat-box .s-tag  { font-size: 11px; padding: 3px 8px; }
+        }
+        @container (min-height: 72px) {
+            .seat-box .s-id   { font-size: 12px; }
+            .seat-box .s-name { font-size: 17px; }
+            .seat-box .s-tag  { font-size: 12px; }
+        }
+        @container (min-height: 95px) {
+            .seat-box .s-name { font-size: 19px; }
+            .seat-box .s-tag  { font-size: 13px; padding: 4px 10px; }
+        }
+    
+        /* [v1.5] 매우 작은 칸: 잘림 방지용 축소 (어떤 화면에서도 3요소 표시 보장) */
+        @container (max-height: 48px) {
+            .seat-box { gap: 0px; padding: 1px 2px; }
+            .seat-box .s-id   { font-size: 9px; }
+            .seat-box .s-name { font-size: 11.5px; }
+            .seat-box .s-tag  { font-size: 8.5px; padding: 1px 4px; }
+        }
+        @container (max-height: 38px) {
+            .seat-box .s-id   { font-size: 8px; }
+            .seat-box .s-name { font-size: 10px; }
+            .seat-box .s-tag  { font-size: 7.5px; padding: 0px 3px; }
+        }
     </style>
 
     <script>
@@ -577,7 +611,7 @@
             </div>
             <div class="memo-modal-body">
                 <div class="memo-date-label" id="memo-modal-date"></div>
-                <textarea class="memo-textarea" id="quick-memo-textarea" placeholder="메모를 입력하세요..."></textarea>
+                <textarea class="memo-textarea" id="quick-memo-textarea" placeholder="여기에 S펜으로 바로 쓰세요…" oninput="memoAutoSave()" autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
             </div>
             <div class="memo-modal-foot">
                 <button class="memo-cancel-btn" onclick="closeMemoModal()">취소</button>
@@ -1723,6 +1757,22 @@
             }
         }
 
+        // [v1.5] 빠른 메모: 즉시 열림·즉시 저장 (S펜 필기 → 바로 저장 → 바로 출석)
+        function memoKey(){
+            const dk = document.getElementById('quick-memo-modal').dataset.dateKey;
+            return dk || currentFileDate || todayStr();
+        }
+        function _writeMemo(text){
+            const key = memoKey();
+            const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
+            if(text && text.trim()) memos[key] = text; else delete memos[key];
+            localStorage.setItem('quickMemos', JSON.stringify(memos));
+        }
+        // 필기 중에도 입력될 때마다 자동 저장 → 저장 누락 방지
+        function memoAutoSave(){
+            _writeMemo(document.getElementById('quick-memo-textarea').value);
+        }
+        function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
         function openMemoModal(dateKey) {
             const history = JSON.parse(localStorage.getItem('smartAttendanceHistory') || '{}');
             const dateLabel = dateKey
@@ -1732,24 +1782,25 @@
             document.getElementById('quick-memo-modal').dataset.dateKey = dateKey || '';
             const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
             const key = dateKey || currentFileDate || '';
-            document.getElementById('quick-memo-textarea').value = memos[key] || '';
+            const ta = document.getElementById('quick-memo-textarea');
+            ta.value = memos[key] || '';
             showModal('quick-memo-modal');
-            setTimeout(() => document.getElementById('quick-memo-textarea').focus(), 100);
+            // 즉시 포커스 → S펜 필기 패널이 바로 뜨도록 (지연 제거)
+            ta.focus();
+            // 렌더 직후 한 번 더 보장 (커서를 끝으로)
+            requestAnimationFrame(() => { ta.focus(); const L=ta.value.length; try{ta.setSelectionRange(L,L);}catch(e){} });
         }
-        
         function closeMemoModal() {
             closeModal('quick-memo-modal');
         }
-        
         function saveMemoModal() {
-            const key = document.getElementById('quick-memo-modal').dataset.dateKey || currentFileDate || '';
-            const text = document.getElementById('quick-memo-textarea').value;
-            const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
-            if(text.trim()) { memos[key] = text; }
-            else { delete memos[key]; }
-            localStorage.setItem('quickMemos', JSON.stringify(memos));
+            const ta = document.getElementById('quick-memo-textarea');
+            ta.blur(); // 진행 중인 S펜 필기 인식을 즉시 확정(commit)시켜 누락 방지
+            _writeMemo(ta.value);
+            const key = memoKey();
             closeMemoModal();
             showMemoIndicator(key);
+            if(typeof showToast==='function') showToast('메모 저장됨');
         }
         
         function showMemoIndicator(key) {
