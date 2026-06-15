@@ -1,5 +1,5 @@
 // sw.js - 태하관자습실출석부v1_1 Service Worker
-const CACHE_NAME = 'taehagwan-v2';
+const CACHE_NAME = 'taehagwan-v1_2';
 const ASSETS = [
   './index.html',
   './manifest.json',
