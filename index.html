@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
     <title>자습실 출석 시스템</title>
     <!-- PWA 설정 -->
     <link rel="manifest" href="manifest.json">
@@ -15,6 +14,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <style>
         /* =========================================================
            [안드로이드 최적화] 가볍고 직관적인 Flexbox 레이아웃
@@ -22,11 +22,10 @@
         html, body {
             margin: 0; padding: 0;
             width: 100%; height: 100vh;
-            overflow: hidden; /* 전체 페이지 스크롤 방지 */
-            background-color: #f4f6f9;
-            font-family: 'Malgun Gothic', sans-serif;
-            color: #333;
+            overflow: hidden; 
+            font-family: 'Pretendard', 'SUIT', system-ui, -apple-system, sans-serif;
             -webkit-user-select: none; user-select: none;
+            transition: background-color 0.4s ease, color 0.4s ease;
         }
 
         input, textarea, select { -webkit-user-select: auto; user-select: auto; }
@@ -38,15 +37,15 @@
         }
 
         /* 상단 헤더 & 통계 (고정 영역) */
-        .header-container { background: #ffffff; padding: 15px 20px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); margin: 10px 10px 0 10px; display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; gap: 10px; }
-        .stats-bar { display: flex; gap: 8px; margin: 10px; background: #ffffff; padding: 12px 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); font-size: 13px; font-weight: bold; justify-content: space-around; flex-wrap: wrap; flex: 0 0 auto; }
+        .header-container { background: var(--surface); padding: 15px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); margin: 10px 10px 0 10px; display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; gap: 10px; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
+        .stats-bar { display: flex; gap: 8px; margin: 10px; background: var(--surface); padding: 12px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); font-size: 13px; font-weight: bold; justify-content: space-around; flex-wrap: wrap; flex: 0 0 auto; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
         
         /* 메인 명단 (스크롤 없이 꽉 차는 영역) */
         .scrollable-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* 스크롤 방지 */
+            overflow: hidden; 
             padding: 0 10px 10px 10px;
             box-sizing: border-box;
         }
@@ -56,120 +55,406 @@
         .header-center { flex: 1; display: flex; justify-content: center; text-align: center; }
         .header-right { flex: 2; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
         
-        .main-title { font-size: 22px; font-weight: 900; color: #2c3e50; margin: 0; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px dashed transparent; }
-        .main-title:hover { background: #edf2f7; border: 1px dashed #cbd5e0; }
+        .main-title { font-size: 22px; font-weight: 900; color: var(--text); margin: 0; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px dashed transparent; letter-spacing: -0.02em; transition: 0.2s; }
+        .main-title:hover { background: var(--surface-2); border: 1px dashed var(--line-strong); }
         
-        .layout-combined { display: flex; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #d1d8e0; width: 100%; box-sizing: border-box;}
-        .layout-btn { background: #3498db; color: white; padding: 10px 14px; font-weight: bold; cursor: pointer; font-size: 13px; white-space: nowrap;}
-        .layout-status { background: #f8fafc; color: #7f8c8d; padding: 10px 14px; font-weight: bold; font-size: 13px; flex-grow: 1; text-align: center; border-left: 1px solid #d1d8e0; white-space: nowrap;}
-        .layout-status.text-active { background: #e1f5fe; color: #2980b9; }
+        .layout-combined { display: flex; border-radius: var(--radius-sm, 8px); overflow: hidden; box-shadow: var(--sh-1); border: var(--bd-w, 1px) solid var(--line-strong); width: 100%; box-sizing: border-box; transition: all 0.3s ease;}
+        .layout-btn { background: var(--accent); color: var(--accent-tx); padding: 10px 14px; font-weight: bold; cursor: pointer; font-size: 13px; white-space: nowrap; transition: background 0.2s;}
+        .layout-status { background: var(--surface-2); color: var(--text-sub); padding: 10px 14px; font-weight: bold; font-size: 13px; flex-grow: 1; text-align: center; border-left: var(--bd-w, 1px) solid var(--line-strong); white-space: nowrap; transition: 0.2s;}
+        .layout-status.text-active { background: var(--accent-soft); color: var(--accent); }
 
-        .file-label, .action-btn { display: inline-block; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 13px; color: white; cursor: pointer; text-align: center; border: none; font-family: inherit; }
-        .bg-success { background-color: #2ecc71; }
-        .bg-warning { background-color: #f39c12; }
-        .bg-purple { background-color: #8e44ad; }
-        .bg-teal { background-color: #16a085; }
-        .bg-kakao { background-color: #FEE500; color: #3b1e1e; border: 1px solid #FEE500; }
+        .file-label, .action-btn { display: inline-block; padding: 10px 14px; border-radius: var(--radius-sm, 8px); font-weight: 800; font-size: 13px; cursor: pointer; text-align: center; border: none; font-family: inherit; box-shadow: var(--sh-1); transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); letter-spacing: -0.01em;}
+        .file-label:active, .action-btn:active { transform: var(--btn-active-transform, scale(0.96)); box-shadow: var(--btn-active-shadow, 0 1px 2px rgba(0,0,0,0.05)); }
         
-        /* 복귀 버튼 깜빡임 효과 */
+        .action-btn.bg-success, .file-label.bg-success { background: var(--tn-green-bg); color: var(--tn-green-tx); border: var(--bd-w, 1.5px) solid var(--tn-green-bd); }
+        .action-btn.bg-warning, .file-label.bg-warning { background: var(--tn-amber-bg); color: var(--tn-amber-tx); border: var(--bd-w, 1.5px) solid var(--tn-amber-bd); }
+        .action-btn.bg-teal,    .file-label.bg-teal    { background: var(--tn-teal-bg);  color: var(--tn-teal-tx);  border: var(--bd-w, 1.5px) solid var(--tn-teal-bd); }
+        .action-btn.bg-purple,  .file-label.bg-purple,
+        .action-btn.bg-memo { background: var(--tn-violet-bg); color: var(--tn-violet-tx); border: var(--bd-w, 1.5px) solid var(--tn-violet-bd); }
+        .action-btn.bg-kakao { background:#FEE500; color:#3b1e1e; border: var(--bd-w, 1.5px) solid #e6ce00; }
+        
         @keyframes pulseAlert {
             0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
             70% { box-shadow: 0 0 0 8px rgba(231, 76, 60, 0); }
             100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
         }
-        .bg-danger-pulse { background-color: #e74c3c; animation: pulseAlert 2s infinite; }
+        .bg-danger-pulse { background-color: #e74c3c; color: white; animation: pulseAlert 2s infinite; border: var(--bd-w, 1.5px) solid #c0392b; }
 
         input[type="file"] { display: none; }
-        .status-info { font-size: 12px; font-weight: bold; color: #7f8c8d; background: #ecf0f1; padding: 8px 12px; border-radius: 6px; text-align: center; }
+        .status-info { font-size: 12px; font-weight: bold; color: var(--text-sub); background: var(--surface-2); padding: 8px 12px; border-radius: var(--radius-sm, 6px); text-align: center; border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
         
-        .tabs { display: flex; gap: 4px; background: #edf2f7; padding: 4px; border-radius: 8px; }
-        .tab-btn { padding: 8px 16px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; color: #718096; }
-        .tab-btn.active { background: #ffffff; color: #3498db; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
-        .stat-item { display: flex; align-items: center; gap: 4px; }
+        .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: var(--radius-sm, 10px); border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
+        .tab-btn { padding: 8px 16px; border: none; background: transparent; border-radius: var(--radius-sm, 6px); cursor: pointer; font-weight: 800; font-size: 13px; color: var(--text-sub); transition: 0.2s;}
+        .tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: var(--sh-1); }
+        .stat-item { display: flex; align-items: center; gap: 4px; background: var(--surface-2); border: var(--bd-w, 1px) solid var(--line); padding: 6px 12px; border-radius: var(--radius, 999px); color: var(--text); transition: 0.3s;}
         
-        /* 좌석 그리드 (남은 공간 꽉 채우기) */
+        /* 좌석 그리드 */
         #grid-board { 
             flex: 1; 
             min-height: 0; 
             display: grid; 
-            gap: 4px; 
-            background: #ffffff; 
+            gap: var(--grid-gap, 6px); 
+            background: var(--surface); 
             padding: 10px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            border-radius: var(--radius); 
+            box-shadow: var(--sh-1); 
+            border: var(--bd-w, 1px) solid var(--line);
             box-sizing: border-box;
+            transition: all 0.3s ease;
         }
-        .no-data-msg { grid-column: 1 / -1; text-align: center; padding: 30px 20px; color: #a0aec0; font-size: 14px; font-weight: bold; }
+        .no-data-msg { grid-column: 1 / -1; text-align: center; padding: 30px 20px; color: var(--text-sub); font-size: 14px; font-weight: bold; }
         
-        /* 좌석 높이 및 사이즈 자동 조절 (여백 최소화, 글씨 잘림 방지) */
-        .seat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 1px; text-align: center; cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; box-sizing: border-box; position: relative; gap: 1px; overflow: hidden; }
-        .seat-box .s-id { font-size: 11px; color: #4a5568; font-weight: 900; line-height: 1; margin-bottom: 2px; }
-        .seat-box .s-name { font-size: 13px; font-weight: 900; color: #2d3748; line-height: 1; }
-        .seat-box .s-tag { font-size: 10px; font-weight: bold; padding: 2px 3px; border-radius: 4px; background: #edf2f7; color: #4a5568; line-height: 1; margin-top: 2px; }
+        /* 일반 좌석 카드 디자인 */
+        .seat-box { 
+            background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+            border: var(--bd-w-strong, 1.5px) solid var(--line-strong); 
+            border-radius: var(--seat-r); 
+            padding: 4px 2px; 
+            text-align: center; 
+            cursor: pointer; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100%; 
+            box-sizing: border-box; 
+            position: relative; 
+            gap: 4px; 
+            overflow: hidden; 
+            box-shadow: var(--sh-1), inset 0 2px 4px rgba(255, 255, 255, 0.4); 
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+        .seat-box:active { 
+            transform: var(--seat-active-transform, scale(0.95)); 
+            box-shadow: var(--seat-active-shadow, inset 0 2px 4px rgba(0,0,0,0.05)); 
+            background: var(--surface-2);
+        }
         
-        .memo-indicator { position: absolute; top: 2px; right: 2px; background-color: #e53e3e; color: #ffffff; font-size: 9px; font-weight: bold; padding: 2px 4px; border-radius: 4px; display: none; z-index: 5; }
-        .seat-box.manual-override { box-shadow: inset 0 0 0 2px #e53e3e !important; background-color: #fff5f5; }
+        .seat-box .s-id { font-size: 11.5px; color: var(--text-sub); font-weight: 800; line-height: 1; letter-spacing: 0.02em; }
+        .seat-box .s-name { font-size: 15px; font-weight: 900; color: var(--text); line-height: 1; letter-spacing: -0.02em; }
         
-        .passage { height: 100%; box-sizing: border-box; } /* 배경 없는 순수 통로 */
-        .empty-seat { background: #ffffff; border: 1px dashed #a0aec0; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; color: #a0aec0; font-weight: bold; height: 100%; box-sizing: border-box; }
-        .facility { display: flex; align-items: center; justify-content: center; background: #e2e8f0; font-weight: bold; border-radius: 6px; font-size: 12px; color: #4a5568; border: 1px dashed #a0aec0; height: 100%; box-sizing: border-box; }
+        /* 기본 태그 (자습중) */
+        .seat-box .s-tag { 
+            font-size: 11px; 
+            font-weight: 900; 
+            padding: 4px 8px; 
+            border-radius: var(--tag-r, 6px); 
+            background: var(--surface); 
+            color: var(--text-sub); 
+            line-height: 1; 
+            border: var(--bd-w, 1px) solid var(--line-strong); 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            transition: 0.2s;
+        }
         
-        /* 특이사항 메모장 (크기 고정) */
-        .daily-memo-container { flex: 0 0 auto; background: #ffffff; padding: 12px 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-        .daily-memo-header { font-size: 13px; font-weight: bold; color: #2c3e50; }
-        #daily-memo { width: 100%; height: 60px; border: 1px solid #cbd5e0; border-radius: 8px; padding: 10px; font-size: 14px; font-family: inherit; resize: none; box-sizing: border-box; background: #f8fafc; line-height: 1.5; }
-        #daily-memo:focus { outline: none; border-color: #3498db; background: #fff; }
+        .memo-indicator { position: absolute; top: 4px; right: 4px; background-color: var(--out-bar); color: #ffffff; font-size: 9px; font-weight: 900; padding: 3px 5px; border-radius: 5px; display: none; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .seat-box.manual-override { box-shadow: inset 0 0 0 2px var(--out-bar), var(--sh-1) !important; }
+        
+        .passage { height: 100%; box-sizing: border-box; } 
+        .empty-seat { background: transparent; border: var(--bd-w-strong, 2px) dashed var(--line-strong); border-radius: var(--seat-r); display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-sub); font-weight: 900; height: 100%; box-sizing: border-box; opacity: 0.6; }
+        .facility { display: flex; align-items: center; justify-content: center; background: var(--surface-2); font-weight: 900; border-radius: var(--seat-r); font-size: 12.5px; color: var(--text-sub); border: var(--bd-w-strong, 1.5px) dashed var(--line-strong); height: 100%; box-sizing: border-box; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
+        
+        .daily-memo-container { flex: 0 0 auto; background: var(--surface); padding: 12px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); margin-top: 8px; display: flex; flex-direction: column; gap: 6px; border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
+        .daily-memo-header { font-size: 13.5px; font-weight: 900; color: var(--text); }
+        #daily-memo { width: 100%; height: 60px; border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 8px); padding: 10px; font-size: 14.5px; font-weight: 500; font-family: inherit; resize: none; box-sizing: border-box; background: var(--surface-2); color: var(--text); line-height: 1.5; transition: 0.2s;}
+        #daily-memo:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-        /* 학생 상태 색상 */
-        .status-자습중 { border-left: 4px solid #a0aec0; }
-        .status-외출, .status-귀가, .status-결석, .status-무단결석, .status-조퇴, .status-미입사, .status-명령퇴사, .status-자진퇴사 { background: #fff5f5; border: 1px solid #fed7d7; border-left: 4px solid #e53e3e; }
-        .status-외출 .s-tag, .status-귀가 .s-tag, .status-결석 .s-tag, .status-무단결석 .s-tag, .status-조퇴 .s-tag, .status-미입사 .s-tag, .status-명령퇴사 .s-tag, .status-자진퇴사 .s-tag { background: #fed7d7; color: #c53030; }
-        .status-교내활동 { background: #ebf8ff; border: 1px solid #bee3f8; border-left: 4px solid #3182ce; }
-        .status-교내활동 .s-tag { background: #bee3f8; color: #2b6cb0; }
-        .status-상담 { background: #faf5ff; border: 1px solid #e9d8fd; border-left: 4px solid #805ad5; }
-        .status-상담 .s-tag { background: #e9d8fd; color: #6b46c1; }
-        .status-도서관 { background: #f0fff4; border: 1px solid #c6f6d5; border-left: 4px solid #38a169; }
-        .status-도서관 .s-tag { background: #c6f6d5; color: #2f855a; }
-        .status-쉼터, .status-병결 { background: #fffff0; border: 1px solid #fefcbf; border-left: 4px solid #d69e2e; }
-        .status-쉼터 .s-tag, .status-병결 .s-tag { background: #fefcbf; color: #b7791f; }
-        .status-자승가강 { background: #fffaf0; border: 1px solid #feebc8; border-left: 4px solid #dd6b20; font-weight: bold; }
-        .status-자승가강 .s-tag { background: #feebc8; color: #dd6b20; }
-        .status-중복신청 { background: #fff0f6; border: 2px solid #f687b3; border-left: 4px solid #d53f8c; animation: blink-border 1.2s ease-in-out infinite; }
-        .status-중복신청 .s-tag { background: #fed7e2; color: #97266d; font-weight: 900; }
-        @keyframes blink-border { 0%, 100% { border-color: #d53f8c; } 50% { border-color: #fbb6ce; } }
+        /* =========================================================
+           [핵심 시인성 보장] 학생 상태별 카드 & 태그 색상 매핑 
+           어느 테마에서든 태그(s-tag)는 솔리드 컬러로 강하게 대비시킵니다.
+           ========================================================= */
+        .status-자습중 { border-left: var(--bd-l-w, 6px) solid var(--normal-bar); }
+        
+        .status-외출, .status-귀가, .status-결석, .status-무단결석, .status-조퇴, .status-미입사, .status-명령퇴사, .status-자진퇴사 { 
+            background: var(--out-bg); border-color: var(--out-bd); border-left: var(--bd-l-w, 6px) solid var(--out-bar); 
+        }
+        .status-교내활동 { 
+            background: var(--sch-bg); border-color: var(--sch-bd); border-left: var(--bd-l-w, 6px) solid var(--sch-bar); 
+        }
+        .status-상담 { 
+            background: var(--cns-bg); border-color: var(--cns-bd); border-left: var(--bd-l-w, 6px) solid var(--cns-bar); 
+        }
+        .status-도서관 { 
+            background: var(--lib-bg); border-color: var(--lib-bd); border-left: var(--bd-l-w, 6px) solid var(--lib-bar); 
+        }
+        .status-쉼터, .status-병결 { 
+            background: var(--rst-bg); border-color: var(--rst-bd); border-left: var(--bd-l-w, 6px) solid var(--rst-bar); 
+        }
+        .status-자승가강 { 
+            background: var(--spc-bg); border-color: var(--spc-bd); border-left: var(--bd-l-w, 6px) solid var(--spc-bar); font-weight: bold; 
+        }
+        .status-중복신청 { 
+            background: var(--dup-bg); border: 2px solid var(--dup-bd); border-left: var(--bd-l-w, 6px) solid var(--dup-bar); animation: blink-border 1.5s ease-in-out infinite; 
+        }
+        
+        /* [중요] 상태 태그 색상 강제 오버라이드 - 대비 100% 보장 */
+        .status-외출 .s-tag, .status-귀가 .s-tag, .status-결석 .s-tag, .status-무단결석 .s-tag, .status-조퇴 .s-tag, .status-미입사 .s-tag, .status-명령퇴사 .s-tag, .status-자진퇴사 .s-tag { 
+            background: var(--out-tag-bg); color: var(--out-tag-tx); border: none; 
+        }
+        .status-교내활동 .s-tag { background: var(--sch-tag-bg); color: var(--sch-tag-tx); border: none; }
+        .status-상담 .s-tag     { background: var(--cns-tag-bg); color: var(--cns-tag-tx); border: none; }
+        .status-도서관 .s-tag   { background: var(--lib-tag-bg); color: var(--lib-tag-tx); border: none; }
+        .status-쉼터 .s-tag, .status-병결 .s-tag { background: var(--rst-tag-bg); color: var(--rst-tag-tx); border: none; }
+        .status-자승가강 .s-tag { background: var(--spc-tag-bg); color: var(--spc-tag-tx); border: none; }
+        .status-중복신청 .s-tag { background: var(--dup-tag-bg); color: var(--dup-tag-tx); border: none; font-weight: 900; }
+        
+        @keyframes blink-border { 0%, 100% { border-color: var(--dup-bar); } 50% { border-color: var(--dup-bd); } }
         
         /* 모달 (팝업창) */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; }
-        .modal-box { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .modal-header { font-size: 17px; font-weight: 900; margin-bottom: 12px; border-bottom: 2px solid #edf2f7; padding-bottom: 8px; color: #2b6cb0; display: flex; justify-content: space-between; align-items: center; }
-        .modal-body p { margin: 10px 0; font-size: 14px; line-height: 1.5; color: #4a5568; }
-        .modal-body hr { border: 0; border-top: 1px solid #edf2f7; margin: 15px 0; }
-        .modal-close { background: #a0aec0; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; font-size: 15px; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; opacity: 0; transition: opacity 0.2s ease; }
+        .modal-overlay.show { display: flex; opacity: 1; }
+        .modal-box { background: var(--surface); color: var(--text); padding: 20px; border-radius: var(--radius-lg, 16px); width: 90%; max-width: 400px; max-height: 85vh; overflow-y: auto; box-shadow: var(--sh-2); border: var(--bd-w, 1px) solid var(--line); transform: scale(0.95) translateY(10px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .modal-overlay.show .modal-box { transform: scale(1) translateY(0); }
+
+        .modal-header { font-size: 18px; font-weight: 900; margin-bottom: 12px; border-bottom: 2px solid var(--line); padding-bottom: 10px; color: var(--accent); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body p { margin: 10px 0; font-size: 14px; line-height: 1.5; color: var(--text-sub); }
+        .modal-body hr { border: 0; border-top: 1px solid var(--line); margin: 15px 0; }
+        .modal-close { background: var(--surface-2); color: var(--text-sub); border: var(--bd-w, 1px) solid var(--line-strong); padding: 12px; border-radius: var(--radius-sm, 9px); cursor: pointer; font-weight: 800; width: 100%; margin-top: 10px; font-size: 15px; transition: 0.2s; }
+        .modal-close:active { transform: scale(0.96); }
+
+        .edit-section { background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm, 10px); border: var(--bd-w, 1px) solid var(--line); margin-top: 15px; }
+        .edit-title { font-size: 14px; font-weight: 900; color: var(--text); margin-bottom: 10px; }
+        .edit-select, .edit-input { width: 100%; padding: 10px; background: var(--surface); color: var(--text); border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 8px); font-size: 14px; font-weight: bold; margin-bottom: 10px; box-sizing: border-box; font-family: inherit; transition: 0.2s; }
+        .edit-select:focus, .edit-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
         
-        .edit-section { background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: 15px; }
-        .edit-title { font-size: 14px; font-weight: bold; color: #2c3e50; margin-bottom: 10px; }
-        .edit-select, .edit-input { width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 6px; font-size: 14px; margin-bottom: 10px; box-sizing: border-box; }
-        .btn-save { background: #e53e3e; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; font-size: 15px; }
-        .history-btn { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #e2e8f0; background: #f8fafc; font-size: 14px; font-weight: bold; color: #2c3e50; cursor: pointer; text-align: left; }
-        .export-btn { display: inline-flex; align-items: center; justify-content: center; background: #27ae60; color: white; border: none; padding: 10px 14px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin-right: 5px; margin-bottom: 5px; width: 100%; box-sizing: border-box;}
-        .native-select { width: 100%; padding: 12px; border: 2px solid #d35400; border-radius: 8px; font-size: 15px; font-weight: bold; color: #d35400; background: #fff; text-align: center; box-sizing: border-box; outline: none; margin-bottom: 8px; }
-        .load-btn { width: 100%; background: #d35400; color: white; font-weight: bold; padding: 12px; border: none; border-radius: 8px; font-size: 14px; cursor: pointer; }
-        .upload-label { display: block; background: #8e44ad; color: white; text-align: center; padding: 12px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
+        .btn-save { background: var(--accent); color: var(--accent-tx); border: none; padding: 12px; border-radius: var(--radius-sm, 9px); cursor: pointer; font-weight: 900; width: 100%; font-size: 15px; transition: 0.2s; box-shadow: var(--sh-1); }
+        .btn-save:active { transform: scale(0.96); }
         
-        optgroup { font-weight: 900; color: #2c3e50; background: #f1f5f9; padding: 5px; }
-        option { font-weight: bold; color: #333; background: #fff; padding: 5px; }
+        .history-btn { display: block; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: var(--radius-sm, 9px); border: var(--bd-w, 1px) solid var(--line); background: var(--surface-2); font-size: 14px; font-weight: bold; color: var(--text); cursor: pointer; text-align: left; transition: 0.2s; }
+        .history-btn:hover { border-color: var(--line-strong); background: var(--surface); }
+        .export-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--tn-green-bg); color: var(--tn-green-tx); border: var(--bd-w, 1.5px) solid var(--tn-green-bd); padding: 10px 14px; border-radius: var(--radius-sm, 8px); font-size: 13px; font-weight: 800; cursor: pointer; margin-right: 5px; margin-bottom: 5px; width: 100%; box-sizing: border-box; transition: 0.2s;}
+        .export-btn:active { transform: scale(0.96); }
+        
+        .native-select { width: 100%; padding: 12px; border: 2px solid var(--accent); border-radius: var(--radius-sm, 9px); font-size: 15px; font-weight: bold; color: var(--accent); background: var(--surface); text-align: center; box-sizing: border-box; outline: none; margin-bottom: 8px; }
+        .load-btn { width: 100%; background: var(--accent); color: var(--accent-tx); font-weight: bold; padding: 12px; border: none; border-radius: var(--radius-sm, 9px); font-size: 14px; cursor: pointer; transition: 0.2s; box-shadow: var(--sh-1); }
+        .load-btn:active { transform: scale(0.96); }
+        .upload-label { display: block; background: var(--tn-violet-bg); color: var(--tn-violet-tx); border: var(--bd-w, 1.5px) solid var(--tn-violet-bd); text-align: center; padding: 12px; border-radius: var(--radius-sm, 9px); font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.2s; box-shadow: var(--sh-1); }
+        .upload-label:active { transform: scale(0.96); }
+        
+        optgroup { font-weight: 900; color: var(--text); background: var(--surface-2); padding: 5px; }
+        option { font-weight: bold; color: var(--text); background: var(--surface); padding: 5px; }
 
         /* 백업용 달력 UI 추가 스타일 */
-        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 16px; font-weight: 900; color: #2c3e50; }
-        .cal-nav-btn { background: #edf2f7; border: none; padding: 10px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; color: #4a5568; font-size: 14px; }
-        .cal-nav-btn:active { background: #cbd5e0; }
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 16px; font-weight: 900; color: var(--text); }
+        .cal-nav-btn { background: var(--surface-2); border: var(--bd-w, 1px) solid var(--line); padding: 10px 15px; border-radius: var(--radius-sm, 8px); font-weight: bold; cursor: pointer; color: var(--text-sub); font-size: 14px; transition: 0.2s; }
+        .cal-nav-btn:active { transform: scale(0.9); }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; text-align: center; }
-        .cal-day-header { font-size: 12px; font-weight: bold; color: #718096; padding: 5px 0; }
-        .cal-day { width: 100%; padding: 12px 0; border-radius: 8px; font-size: 15px; font-weight: bold; background: #f8fafc; color: #cbd5e0; border: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: center; font-family: inherit; -webkit-appearance: none; appearance: none; }
-        .cal-day.has-data { background: #3498db; color: white; border: none; cursor: pointer; box-shadow: 0 3px 6px rgba(52, 152, 219, 0.3); touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
-        .cal-day.has-data:active { background: #2980b9; transform: scale(0.95); }
-        .cal-sun { color: #e53e3e; }
-        .cal-sat { color: #3182ce; }
+        .cal-day-header { font-size: 12px; font-weight: 900; color: var(--text-sub); padding: 5px 0; }
+        .cal-day { width: 100%; padding: 12px 0; border-radius: var(--radius-sm, 8px); font-size: 15px; font-weight: bold; background: var(--surface-2); color: var(--line-strong); border: var(--bd-w, 1px) solid var(--line); display: flex; align-items: center; justify-content: center; font-family: inherit; -webkit-appearance: none; appearance: none; transition: 0.2s; }
+        .cal-day.has-data { background: var(--accent); color: var(--accent-tx); border: none; cursor: pointer; box-shadow: var(--sh-1); touch-action: manipulation; -webkit-tap-highlight-color: rgba(0,0,0,0.1); }
+        .cal-day.has-data:active { transform: scale(0.9); }
+        .cal-sun { color: var(--out-bar); }
+        .cal-sat { color: var(--sch-bar); }
+        
+        /* 메모장 모달 */
+        .memo-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.55); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); justify-content:center; align-items:center; z-index:2000; opacity: 0; transition: 0.2s ease;}
+        .memo-modal-overlay.show { display: flex; opacity: 1; }
+        .memo-modal-box { background: var(--surface); border: var(--bd-w, 1px) solid var(--line); border-radius: var(--radius-lg, 16px); width:92%; max-width:440px; box-shadow: var(--sh-2); display:flex; flex-direction:column; overflow:hidden; transform: scale(0.95) translateY(10px); transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .memo-modal-overlay.show .memo-modal-box { transform: scale(1) translateY(0); }
+        
+        .memo-modal-head { background: var(--accent); color: var(--accent-tx); padding: 14px 18px; font-size: 16px; font-weight: 900; display: flex; justify-content: space-between; align-items: center; }
+        .memo-modal-head button { background: rgba(255,255,255,0.2); border: none; color: inherit; border-radius: var(--radius-sm, 8px); padding: 6px 14px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .memo-modal-head button:active { transform: scale(0.9); }
+        .memo-modal-body { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+        .memo-date-label { font-size: 13px; font-weight: bold; color: var(--text-sub); }
+        .memo-textarea { width: 100%; height: 160px; border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 10px); padding: 12px; font-size: 15px; font-family: inherit; resize: none; box-sizing: border-box; background: var(--surface-2); color: var(--text); line-height: 1.6; transition: 0.2s; }
+        .memo-textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
+        .memo-modal-foot { display: flex; gap: 8px; padding: 0 18px 16px; }
+        .memo-save-btn { flex: 1; background: var(--accent); color: var(--accent-tx); border: none; padding: 13px; border-radius: var(--radius-sm, 8px); font-size: 15px; font-weight: 900; cursor: pointer; transition: 0.2s; box-shadow: var(--sh-1); }
+        .memo-save-btn:active { transform: scale(0.96); }
+        .memo-cancel-btn { background: var(--surface-2); color: var(--text-sub); border: var(--bd-w, 1px) solid var(--line-strong); padding: 13px 18px; border-radius: var(--radius-sm, 8px); font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .memo-cancel-btn:active { transform: scale(0.96); }
+
+
+        /* =========================================================
+           [v2.0] 디자인 시스템 — 6가지 전문가 테마 팔레트 
+           핵심: 태그 시인성을 위한 확실한 솔리드 컬러 적용
+           ========================================================= */
+
+        /* ─ 1. 클래식 블루 (Professional SaaS Default) ─ */
+        :root {
+            --bg: #f3f6f9;            
+            --surface: #ffffff;       
+            --surface-2: #f8fafc;     
+            --line: #e2e8f0;          
+            --line-strong: #bac4d1;   
+            --text: #0f172a;          
+            --text-sub: #475569;      
+            --accent: #0056d2;        
+            --accent-tx: #ffffff;
+            --accent-soft: #e0f2fe;   
+            
+            --radius: 14px; --radius-sm: 8px; --radius-lg: 18px;
+            --seat-r: 10px; --tag-r: 6px;
+            --sh-1: 0 2px 6px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --sh-2: 0 10px 25px rgba(0, 0, 0, 0.08);
+            
+            --bd-w: 1px; --bd-w-strong: 1.5px; --bd-l-w: 6px; /* 좌측 색상바 굵기 강조 */
+
+            --normal-bar: #94a3b8;
+            /* 고대비 명확한 상태 컬러 토큰 */
+            --out-bg: #fef2f2; --out-bd: #fecaca; --out-bar: #dc2626; --out-tag-bg: #dc2626; --out-tag-tx: #ffffff;
+            --sch-bg: #f0f9ff; --sch-bd: #bae6fd; --sch-bar: #0284c7; --sch-tag-bg: #0284c7; --sch-tag-tx: #ffffff;
+            --cns-bg: #faf5ff; --cns-bd: #e9d5ff; --cns-bar: #9333ea; --cns-tag-bg: #9333ea; --cns-tag-tx: #ffffff;
+            --lib-bg: #f0fdf4; --lib-bd: #bbf7d0; --lib-bar: #16a34a; --lib-tag-bg: #16a34a; --lib-tag-tx: #ffffff;
+            --rst-bg: #fffbeb; --rst-bd: #fde68a; --rst-bar: #d97706; --rst-tag-bg: #d97706; --rst-tag-tx: #ffffff;
+            --spc-bg: #fff7ed; --spc-bd: #fed7aa; --spc-bar: #ea580c; --spc-tag-bg: #ea580c; --spc-tag-tx: #ffffff;
+            --dup-bg: #fdf2f8; --dup-bd: #fbcfe8; --dup-bar: #db2777; --dup-tag-bg: #db2777; --dup-tag-tx: #ffffff;
+
+            /* Tonal Buttons */
+            --tn-green-bg: #dcfce7; --tn-green-tx: #166534; --tn-green-bd: #86efac;
+            --tn-amber-bg: #fef3c7; --tn-amber-tx: #92400e; --tn-amber-bd: #fcd34d;
+            --tn-teal-bg:  #ccfbf1; --tn-teal-tx: #115e59; --tn-teal-bd: #5eead4;
+            --tn-violet-bg:#f3e8ff; --tn-violet-tx: #6b21a8; --tn-violet-bd: #d8b4fe;
+        }
+
+        /* ─ 2. 미드나이트 다크 (눈이 편안한 야간모드 + 태그 대비) ─ */
+        body.theme-dark {
+            --bg: #0f172a; 
+            --surface: #1e293b; 
+            --surface-2: #334155;
+            --line: #334155; 
+            --line-strong: #475569;
+            --text: #f8fafc; 
+            --text-sub: #94a3b8;
+            --accent: #60a5fa; 
+            --accent-tx: #0f172a; 
+            --accent-soft: #1e3a8a;
+            --sh-1: 0 4px 12px rgba(0,0,0,.3); 
+            --sh-2: 0 8px 24px rgba(0,0,0,.4);
+            
+            --normal-bar: #64748b;
+            /* 다크 모드에서는 태그 배경을 다소 어둡게, 텍스트를 아주 밝게 처리해 시인성 확보 */
+            --out-bg: #451a23; --out-bd: #7f1d1d; --out-bar: #ef4444; --out-tag-bg: #7f1d1d; --out-tag-tx: #fca5a5;
+            --sch-bg: #164e63; --sch-bd: #0c4a6e; --sch-bar: #38bdf8; --sch-tag-bg: #0c4a6e; --sch-tag-tx: #bae6fd;
+            --cns-bg: #4c1d95; --cns-bd: #581c87; --cns-bar: #c084fc; --cns-tag-bg: #581c87; --cns-tag-tx: #e9d5ff;
+            --lib-bg: #064e3b; --lib-bd: #065f46; --lib-bar: #4ade80; --lib-tag-bg: #065f46; --lib-tag-tx: #a7f3d0;
+            --rst-bg: #713f12; --rst-bd: #854d0e; --rst-bar: #facc15; --rst-tag-bg: #854d0e; --rst-tag-tx: #fef08a;
+            --spc-bg: #7c2d12; --spc-bd: #9a3412; --spc-bar: #fb923c; --spc-tag-bg: #9a3412; --spc-tag-tx: #fed7aa;
+            --dup-bg: #831843; --dup-bd: #9d174d; --dup-bar: #f472b6; --dup-tag-bg: #9d174d; --dup-tag-tx: #fbcfe8;
+            
+            --tn-green-bg: #064e3b; --tn-green-tx: #6ee7b7; --tn-green-bd: #065f46;
+            --tn-amber-bg: #713f12; --tn-amber-tx: #fcd34d; --tn-amber-bd: #854d0e;
+            --tn-teal-bg: #164e63;  --tn-teal-tx: #67e8f9;  --tn-teal-bd: #0c4a6e;
+            --tn-violet-bg: #4c1d95;--tn-violet-tx: #d8b4fe;--tn-violet-bd: #581c87;
+        }
+
+        /* ─ 3. 포레스트 그린 (베이스는 그린, 상태는 명확한 시맨틱 컬러) ─ */
+        body.theme-green {
+            --bg: #f0fdf4; --surface: #ffffff; --surface-2: #ecfdf5;
+            --line: #a7f3d0; --line-strong: #6ee7b7;
+            --text: #064e3b; --text-sub: #047857;
+            --accent: #10b981; --accent-tx: #ffffff; --accent-soft: #d1fae5;
+            --sh-1: 0 4px 12px rgba(16, 185, 129, 0.06);
+            --sh-2: 0 10px 25px rgba(16, 185, 129, 0.12);
+            
+            --normal-bar: #34d399;
+            /* 카드는 테마에 맞게 아주 옅은 틴트, 태그는 강력한 원색 */
+            --out-bg: #fff1f2; --out-bd: #fda4af; --out-bar: #e11d48; --out-tag-bg: #e11d48; --out-tag-tx: #ffffff;
+            --sch-bg: #eff6ff; --sch-bd: #93c5fd; --sch-bar: #3b82f6; --sch-tag-bg: #3b82f6; --sch-tag-tx: #ffffff;
+            --cns-bg: #faf5ff; --cns-bd: #d8b4fe; --cns-bar: #a855f7; --cns-tag-bg: #a855f7; --cns-tag-tx: #ffffff;
+            --lib-bg: #ecfdf5; --lib-bd: #6ee7b7; --lib-bar: #059669; --lib-tag-bg: #059669; --lib-tag-tx: #ffffff;
+            --rst-bg: #fffbeb; --rst-bd: #fcd34d; --rst-bar: #d97706; --rst-tag-bg: #d97706; --rst-tag-tx: #ffffff;
+            --spc-bg: #fff7ed; --spc-bd: #fdba74; --spc-bar: #ea580c; --spc-tag-bg: #ea580c; --spc-tag-tx: #ffffff;
+            --dup-bg: #fdf2f8; --dup-bd: #f9a8d4; --dup-bar: #db2777; --dup-tag-bg: #db2777; --dup-tag-tx: #ffffff;
+        }
+
+        /* ─ 4. 선셋 앰버 (베이스는 웜, 상태 컬러 뚜렷하게 분리) ─ */
+        body.theme-warm {
+            --bg: #fffbeb; --surface: #ffffff; --surface-2: #fef3c7;
+            --line: #fde68a; --line-strong: #fcd34d;
+            --text: #78350f; --text-sub: #92400e;
+            --accent: #f59e0b; --accent-tx: #ffffff; --accent-soft: #fef3c7;
+            --sh-1: 0 4px 12px rgba(249, 115, 22, 0.06);
+            --sh-2: 0 10px 25px rgba(249, 115, 22, 0.12);
+            
+            --normal-bar: #fbbf24;
+            --out-bg: #fff1f2; --out-bd: #fca5a5; --out-bar: #dc2626; --out-tag-bg: #dc2626; --out-tag-tx: #ffffff;
+            --sch-bg: #eff6ff; --sch-bd: #93c5fd; --sch-bar: #2563eb; --sch-tag-bg: #2563eb; --sch-tag-tx: #ffffff;
+            --cns-bg: #f5f3ff; --cns-bd: #c4b5fd; --cns-bar: #7c3aed; --cns-tag-bg: #7c3aed; --cns-tag-tx: #ffffff;
+            --lib-bg: #ecfdf5; --lib-bd: #6ee7b7; --lib-bar: #10b981; --lib-tag-bg: #10b981; --lib-tag-tx: #ffffff;
+            --rst-bg: #ffedd5; --rst-bd: #fdba74; --rst-bar: #d97706; --rst-tag-bg: #d97706; --rst-tag-tx: #ffffff;
+            --spc-bg: #fef2f2; --spc-bd: #fda4af; --spc-bar: #be123c; --spc-tag-bg: #be123c; --spc-tag-tx: #ffffff;
+            --dup-bg: #fdf2f8; --dup-bd: #f9a8d4; --dup-bar: #db2777; --dup-tag-bg: #db2777; --dup-tag-tx: #ffffff;
+        }
+
+        /* ─ 5. 모노 고대비 (Neo-Brutalist: 검은 윤곽, 강렬한 형광색 태그) ─ */
+        body.theme-mono {
+            --bg: #e4e4e7; --surface: #ffffff; --surface-2: #f4f4f5;
+            --line: #000000; --line-strong: #000000;
+            --text: #000000; --text-sub: #000000;
+            --accent: #000000; --accent-tx: #ffffff; --accent-soft: #d4d4d8;
+            
+            --radius: 4px; --radius-sm: 4px; --radius-lg: 8px; --seat-r: 4px; --tag-r: 0px;
+            --bd-w: 2px; --bd-w-strong: 2px; --bd-l-w: 6px;
+            --sh-1: 3px 3px 0px rgba(0,0,0,1);
+            --sh-2: 8px 8px 0px rgba(0,0,0,1);
+            --grid-gap: 8px;
+            --btn-active-transform: translate(3px, 3px);
+            --btn-active-shadow: 0px 0px 0px rgba(0,0,0,1);
+            --seat-active-transform: translate(2px, 2px);
+            --seat-active-shadow: 1px 1px 0px rgba(0,0,0,1);
+
+            --normal-bar: #000000;
+            
+            /* 눈이 아플 정도로 확실한 100% 원색 사용 */
+            --out-bg: #ffcccc; --out-bd: #000000; --out-bar: #ff0000; --out-tag-bg: #ff0000; --out-tag-tx: #ffffff;
+            --sch-bg: #cceeff; --sch-bd: #000000; --sch-bar: #0066ff; --sch-tag-bg: #0066ff; --sch-tag-tx: #ffffff;
+            --cns-bg: #e6ccff; --cns-bd: #000000; --cns-bar: #9900ff; --cns-tag-bg: #9900ff; --cns-tag-tx: #ffffff;
+            --lib-bg: #ccffcc; --lib-bd: #000000; --lib-bar: #00aa00; --lib-tag-bg: #00aa00; --lib-tag-tx: #ffffff;
+            --rst-bg: #ffffcc; --rst-bd: #000000; --rst-bar: #ffaa00; --rst-tag-bg: #ffaa00; --rst-tag-tx: #000000; /* 노랑엔 검정글씨 */
+            --spc-bg: #ffe6cc; --spc-bd: #000000; --spc-bar: #ff6600; --spc-tag-bg: #ff6600; --spc-tag-tx: #ffffff;
+            --dup-bg: #ffccf2; --dup-bd: #000000; --dup-bar: #ff00aa; --dup-tag-bg: #ff00aa; --dup-tag-tx: #ffffff;
+
+            --tn-green-bg: #ffffff; --tn-green-tx: #000000; --tn-green-bd: #000000;
+            --tn-amber-bg: #ffffff; --tn-amber-tx: #000000; --tn-amber-bd: #000000;
+            --tn-teal-bg:  #ffffff; --tn-teal-tx: #000000; --tn-teal-bd:  #000000;
+            --tn-violet-bg:#ffffff; --tn-violet-tx: #000000; --tn-violet-bd: #000000;
+        }
+
+        /* ─ 6. 라일락 파스텔 (둥글고 귀엽지만, 상태 태그는 확실하게) ─ */
+        body.theme-pastel {
+            --bg: #f5f3ff; --surface: #ffffff; --surface-2: #ede9fe;
+            --line: #ddd6fe; --line-strong: #c4b5fd;
+            --text: #4c1d95; --text-sub: #6d28d9;
+            --accent: #8b5cf6; --accent-tx: #ffffff; --accent-soft: #ede9fe;
+            
+            --radius: 20px; --radius-sm: 12px; --radius-lg: 24px; 
+            --seat-r: 16px; --tag-r: 999px; /* 완전 둥근 태그 */
+            --sh-1: 0 4px 15px rgba(139, 92, 246, 0.1);
+            --sh-2: 0 10px 30px rgba(139, 92, 246, 0.18);
+            
+            --normal-bar: #a78bfa;
+            /* 파스텔톤 UI 속에서 태그는 쨍하게 빛나도록 조절 */
+            --out-bg: #fff1f2; --out-bd: #fecdd3; --out-bar: #f43f5e; --out-tag-bg: #f43f5e; --out-tag-tx: #ffffff;
+            --sch-bg: #f0f9ff; --sch-bd: #bae6fd; --sch-bar: #0ea5e9; --sch-tag-bg: #0ea5e9; --sch-tag-tx: #ffffff;
+            --cns-bg: #faf5ff; --cns-bd: #e9d5ff; --cns-bar: #a855f7; --cns-tag-bg: #a855f7; --cns-tag-tx: #ffffff;
+            --lib-bg: #f0fdf4; --lib-bd: #bbf7d0; --lib-bar: #10b981; --lib-tag-bg: #10b981; --lib-tag-tx: #ffffff;
+            --rst-bg: #fffbeb; --rst-bd: #fde68a; --rst-bar: #f59e0b; --rst-tag-bg: #f59e0b; --rst-tag-tx: #ffffff;
+            --spc-bg: #fff7ed; --spc-bd: #fed7aa; --spc-bar: #f97316; --spc-tag-bg: #f97316; --spc-tag-tx: #ffffff;
+            --dup-bg: #fdf2f8; --dup-bd: #fbcfe8; --dup-bar: #ec4899; --dup-tag-bg: #ec4899; --dup-tag-tx: #ffffff;
+        }
+
+        /* 테마 패널 (플로팅) */
+        .theme-panel { display:none; position:fixed; bottom:74px; right:14px; background:var(--surface);
+            border: var(--bd-w, 1px) solid var(--line); border-radius: var(--radius-lg, 16px); box-shadow: var(--sh-2);
+            padding:16px; z-index:500; flex-direction:column; gap:8px; min-width:200px; 
+            transform: translateY(10px); opacity: 0; transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .theme-panel.open { display:flex; transform: translateY(0); opacity: 1; }
+        .theme-panel-title { font-size:13px; font-weight:900; color:var(--text-sub); margin-bottom:6px; letter-spacing:0.02em; }
+        .theme-opt { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius: var(--radius-sm, 10px);
+            cursor:pointer; border: 2px solid transparent; font-size:15px; font-weight:800; color:var(--text); transition: 0.2s;}
+        .theme-opt:hover { background: var(--surface-2); }
+        .theme-opt.active { border-color: var(--accent); background: var(--accent-soft); }
+        .theme-swatch { width:24px; height:24px; border-radius:50%; border:2px solid var(--line-strong);
+            flex-shrink:0; position:relative; overflow:hidden; }
+        .theme-swatch::after { content:''; position:absolute; left:0; top:0; width:50%; height:100%; }
+        
+        .theme-fab { position:fixed; bottom:16px; right:14px; background:var(--surface); color:var(--text);
+            border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius:50%; width:52px; height:52px; font-size:22px;
+            cursor:pointer; box-shadow:var(--sh-1); z-index:501; display:flex; align-items:center; justify-content:center; transition: 0.2s;}
+        .theme-fab:active { transform: scale(0.9); }
+
     </style>
 
     <script>
@@ -200,10 +485,8 @@
             </div>
             
             <div class="header-right">
-                <!-- 오늘로 복귀 버튼 추가 -->
                 <button id="btn-return-today" class="action-btn bg-danger-pulse" style="display:none;" onclick="returnToToday()">🔙 오늘(현재)로 복귀</button>
                 
-                <!-- 파일 선택 값 강제 초기화(onclick) 추가 -->
                 <label class="file-label bg-success" for="input-status" id="label-status" style="display:none;">📊 당일출석부연동</label>
                 <input type="file" id="input-status" accept=".xlsx, .xls, .csv" onclick="this.value=null;">
                 
@@ -216,6 +499,7 @@
                 </div>
                 
                 <button class="action-btn bg-teal" onclick="toggleFullScreen()">⛶ 전체화면</button>
+                <button class="action-btn bg-memo" onclick="openMemoModal()">📝 메모</button>
                 <button class="action-btn bg-warning" id="btn-history" style="display:none;" onclick="openHistoryModal()">🗓️ 과거 기록</button>
             </div>
         </div>
@@ -228,7 +512,7 @@
             <div class="stat-item">🟢 도서관: <span id="stat-lib">0</span></div>
             <div class="stat-item">🟡 쉼터: <span id="stat-rest">0</span></div>
             <div class="stat-item">⭐ 자승가강: <span id="stat-special">0</span></div>
-            <div class="stat-item" id="stat-dup-wrap" style="display:none;">⚠️ 중복신청: <span id="stat-dup" style="color:#d53f8c; font-weight:900;">0</span></div>
+            <div class="stat-item" id="stat-dup-wrap" style="display:none;">⚠️ 중복신청: <span id="stat-dup" style="color:var(--dup-tx); font-weight:900;">0</span></div>
         </div>
 
         <div class="scrollable-area" id="main-content">
@@ -248,15 +532,15 @@
     <div id="smart-export-modal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
-                <span style="color:#2ecc71;">📤 3교시 출결 내보내기</span>
+                <span style="color:var(--accent);">📤 3교시 출결 내보내기</span>
             </div>
             <div class="modal-body">
-                <p style="font-size:12px; color:#718096; margin-bottom:8px; margin-top:0;">카톡방에 바로 보고하실 수 있는 <b>명단 요약 텍스트</b>입니다.</p>
-                <textarea id="export-summary-text" style="width:100%; height:160px; font-size:13px; padding:10px; border-radius:8px; border:1px solid #cbd5e0; box-sizing:border-box; background:#f8fafc; color:#2c3e50; line-height:1.6;" readonly></textarea>
+                <p style="font-size:12px; color:var(--text-sub); margin-bottom:8px; margin-top:0;">카톡방에 바로 보고하실 수 있는 <b>명단 요약 텍스트</b>입니다.</p>
+                <textarea id="export-summary-text" style="width:100%; height:160px; font-size:14px; padding:12px; border-radius:var(--radius-sm, 8px); border:var(--bd-w-strong, 1.5px) solid var(--line-strong); box-sizing:border-box; background:var(--surface-2); color:var(--text); line-height:1.6; font-family:inherit;" readonly></textarea>
                 
-                <button class="action-btn bg-kakao" style="width:100%; margin-top:12px; padding:12px; font-size:15px; font-weight:900;" onclick="shareExportText()">💬 카카오톡으로 명단 텍스트 공유</button>
-                <button class="action-btn bg-purple" style="width:100%; margin-top:8px; padding:12px; font-size:15px; font-weight:900;" onclick="copyExportText()">📋 명단 텍스트 수동 복사</button>
-                <button class="modal-close" onclick="document.getElementById('smart-export-modal').style.display='none'">창 닫기</button>
+                <button class="action-btn bg-kakao" style="width:100%; margin-top:12px; padding:14px; font-size:15px; font-weight:900;" onclick="shareExportText()">💬 카카오톡으로 명단 텍스트 공유</button>
+                <button class="action-btn bg-purple" style="width:100%; margin-top:8px; padding:14px; font-size:15px; font-weight:900;" onclick="copyExportText()">📋 명단 텍스트 수동 복사</button>
+                <button class="modal-close" onclick="closeModal('smart-export-modal')">창 닫기</button>
             </div>
         </div>
     </div>
@@ -267,23 +551,63 @@
                 <span id="modal-title">정보</span>
             </div>
             <div class="modal-body" id="modal-body"></div>
-            <button class="modal-close" onclick="closeModal()">창 닫기</button>
+            <button class="modal-close" onclick="closeModal('detail-modal')">창 닫기</button>
         </div>
     </div>
 
     <div id="title-modal" class="modal-overlay">
         <div class="modal-box" style="max-width: 320px;">
             <div class="modal-header">
-                <span style="color:#2c3e50;">자습실 이름 설정</span>
+                <span style="color:var(--text);">자습실 이름 설정</span>
             </div>
             <div class="modal-body">
-                <p style="font-size:12px; color:#718096; margin-top:0;">입력하신 이름이 내보내기 엑셀 파일명에 자동으로 적용됩니다.</p>
-                <input type="text" id="custom-title-input" class="edit-input" style="font-weight:bold; font-size:15px; text-align:center;">
-                <button class="btn-save" style="background:#3498db; margin-bottom:8px;" onclick="saveCustomTitle()">이름 저장하기</button>
-                <button class="modal-close" style="margin-top:0; background:#e2e8f0; color:#4a5568;" onclick="closeTitleModal()">취소</button>
+                <p style="font-size:12px; color:var(--text-sub); margin-top:0;">입력하신 이름이 내보내기 엑셀 파일명에 자동으로 적용됩니다.</p>
+                <input type="text" id="custom-title-input" class="edit-input" style="font-weight:900; font-size:16px; text-align:center;">
+                <button class="btn-save" style="margin-bottom:8px;" onclick="saveCustomTitle()">이름 저장하기</button>
+                <button class="modal-close" style="margin-top:0;" onclick="closeTitleModal()">취소</button>
             </div>
         </div>
     </div>
+
+    <div class="memo-modal-overlay" id="quick-memo-modal">
+        <div class="memo-modal-box">
+            <div class="memo-modal-head">
+                <span>📝 빠른 메모</span>
+                <button onclick="closeMemoModal()">✕ 닫기</button>
+            </div>
+            <div class="memo-modal-body">
+                <div class="memo-date-label" id="memo-modal-date"></div>
+                <textarea class="memo-textarea" id="quick-memo-textarea" placeholder="메모를 입력하세요..."></textarea>
+            </div>
+            <div class="memo-modal-foot">
+                <button class="memo-cancel-btn" onclick="closeMemoModal()">취소</button>
+                <button class="memo-save-btn" onclick="saveMemoModal()">💾 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="theme-panel" id="theme-panel">
+        <div class="theme-panel-title">🎨 화면 테마</div>
+        <div class="theme-opt active" id="th-default" onclick="setTheme('')">
+            <div class="theme-swatch" style="background:#f1f5f9;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#2563eb;"></div></div> 클래식 블루
+        </div>
+        <div class="theme-opt" id="th-dark" onclick="setTheme('dark')">
+            <div class="theme-swatch" style="background:#0f172a;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#60a5fa;"></div></div> 미드나이트 다크
+        </div>
+        <div class="theme-opt" id="th-green" onclick="setTheme('green')">
+            <div class="theme-swatch" style="background:#ecfdf5;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#10b981;"></div></div> 포레스트 그린
+        </div>
+        <div class="theme-opt" id="th-warm" onclick="setTheme('warm')">
+            <div class="theme-swatch" style="background:#fff7ed;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#f97316;"></div></div> 선셋 앰버
+        </div>
+        <div class="theme-opt" id="th-mono" onclick="setTheme('mono')">
+            <div class="theme-swatch" style="background:#f4f4f5;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#000000;"></div></div> 모노 고대비
+        </div>
+        <div class="theme-opt" id="th-pastel" onclick="setTheme('pastel')">
+            <div class="theme-swatch" style="background:#faf5ff;"><div style="position:absolute;left:0;top:0;width:50%;height:100%;background:#9333ea;"></div></div> 라일락 파스텔
+        </div>
+    </div>
+    <button class="theme-fab" onclick="toggleThemePanel()" title="테마 변경">🎨</button>
 
     <script>
         // =========================================================
@@ -301,20 +625,48 @@
             }
         }
 
+        // 모달창 표시/숨김 로직 (Show 클래스 애니메이션 연동)
+        function showModal(id) {
+            const el = document.getElementById(id);
+            el.style.display = 'flex';
+            void el.offsetWidth; // Reflow
+            el.classList.add('show');
+        }
+
+        function closeModal(id) {
+            if(id) {
+                const el = document.getElementById(id);
+                el.classList.remove('show');
+                setTimeout(() => {
+                    if(!el.classList.contains('show')) el.style.display = 'none';
+                }, 250); 
+            } else {
+                ['detail-modal', 'smart-export-modal', 'title-modal'].forEach(modalId => {
+                    const el = document.getElementById(modalId);
+                    if(el) {
+                        el.classList.remove('show');
+                        setTimeout(() => {
+                            if(!el.classList.contains('show')) el.style.display = 'none';
+                        }, 250);
+                    }
+                });
+            }
+        }
+
+
         // 키보드 활성화 시 메모창이 키보드 바로 위로 오도록 스크롤
         const memoEl = document.getElementById('daily-memo');
 
         function scrollMemoAboveKeyboard() {
             setTimeout(() => {
+                const container = document.getElementById('main-content');
+                if (!container) return;
                 if (window.visualViewport) {
-                    // visualViewport: 키보드가 올라온 후 실제 보이는 영역 기준으로 스크롤
                     const vv = window.visualViewport;
                     const memoRect = memoEl.getBoundingClientRect();
-                    const visibleBottom = vv.offsetTop + vv.height;
-                    // 메모창 하단이 보이는 영역 하단보다 아래에 있으면 스크롤
+                    const visibleBottom = vv.height;
                     if (memoRect.bottom > visibleBottom - 8) {
-                        const scrollY = window.scrollY + memoRect.bottom - visibleBottom + 8;
-                        window.scrollTo({ top: scrollY, behavior: 'smooth' });
+                        container.scrollTop += memoRect.bottom - visibleBottom + 16;
                     }
                 } else {
                     memoEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -323,14 +675,12 @@
         }
 
         memoEl.addEventListener('focus', scrollMemoAboveKeyboard);
-        // 일반 전자펜 지원: pointerdown 이벤트로 포커스 강제 부여
         memoEl.addEventListener('pointerdown', function(e) {
             if (e.pointerType === 'pen' || e.pointerType === 'touch') {
                 this.focus();
                 scrollMemoAboveKeyboard();
             }
         });
-        // visualViewport 리사이즈(키보드 올라올 때)에도 재조정
         if (window.visualViewport) {
             window.visualViewport.addEventListener('resize', function() {
                 if (document.activeElement === memoEl) {
@@ -355,7 +705,6 @@
         window.tempBackupData = {};
         window.tempBackupDisplayDates = {};
 
-        // === [핵심] 과거 모드와 오늘 모드 UI 전환 함수 ===
         function checkPastModeUI() {
             let d = new Date();
             let todayStr = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -366,19 +715,17 @@
 
             if (isPast) {
                 btnReturn.style.display = 'inline-block';
-                labelStatus.style.display = 'none'; // 과거 모드에서는 연동 버튼 숨김 (헷갈림 방지)
+                labelStatus.style.display = 'none'; 
             } else {
                 btnReturn.style.display = 'none';
                 labelStatus.style.display = hasLayout ? 'inline-block' : 'none';
             }
         }
 
-        // === [핵심] 엑셀 업로드 없이 오늘로 즉시 복귀하는 함수 ===
         function returnToToday() {
             initTodayDate();
             let history = JSON.parse(localStorage.getItem('smartAttendanceHistory') || '{}');
             
-            // 오늘 데이터가 로컬 스토리지에 있으면 즉시 복원, 없으면 빈 상태로 초기화
             if (history[currentFileDate]) {
                 attendanceDB = history[currentFileDate].db || { 귀가: {}, 외출: {}, 교내활동: {}, 도서관: {}, 쉼터: {}, 자승가강: {} };
                 manualOverrides = history[currentFileDate].overrides || {};
@@ -391,8 +738,9 @@
             let d = new Date();
             const days = ['일', '월', '화', '수', '목', '금', '토'];
             statusIndicator.innerText = `📅 ${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]})`;
-            statusIndicator.style.backgroundColor = '#e8f5e9';
-            statusIndicator.style.color = '#27ae60';
+            statusIndicator.style.backgroundColor = 'var(--tn-green-bg)';
+            statusIndicator.style.color = 'var(--tn-green-tx)';
+            statusIndicator.style.borderColor = 'var(--tn-green-bd)';
 
             checkPastModeUI();
             if (hasLayout) syncAttendance();
@@ -401,10 +749,10 @@
         function openTitleModal() {
             let current = document.getElementById('main-title').innerText.replace(' ✏️', '');
             document.getElementById('custom-title-input').value = current;
-            document.getElementById('title-modal').style.display = 'flex';
+            showModal('title-modal');
         }
 
-        function closeTitleModal() { document.getElementById('title-modal').style.display = 'none'; }
+        function closeTitleModal() { closeModal('title-modal'); }
 
         function saveCustomTitle() {
             let newTitle = document.getElementById('custom-title-input').value.trim();
@@ -475,8 +823,9 @@
                     attendanceDB = { 귀가: {}, 외출: {}, 교내활동: {}, 도서관: {}, 쉼터: {}, 자승가강: {} };
                     let statusIndicator = document.getElementById('info-status');
                     statusIndicator.innerText = `출석부미로드`;
-                    statusIndicator.style.backgroundColor = '#ecf0f1';
-                    statusIndicator.style.color = '#7f8c8d';
+                    statusIndicator.style.backgroundColor = 'var(--surface-2)';
+                    statusIndicator.style.color = 'var(--text-sub)';
+                    statusIndicator.style.borderColor = 'var(--line)';
                     document.getElementById('input-status').value = ""; 
                 }
                 localStorage.setItem('smartAttendanceHistory', JSON.stringify(history));
@@ -521,9 +870,6 @@
             reader.readAsArrayBuffer(file);
         });
 
-        // =========================================================
-        // 빈칸(통로) 최소화, 좌석 최대화 동적 크기 계산
-        // =========================================================
         function generateGrid(matrix) {
             const board = document.getElementById('grid-board');
             board.innerHTML = "";
@@ -558,7 +904,6 @@
             }
             board.style.gridTemplateRows = rowTracks.join(" ");
 
-            // 요소 생성
             for (let r = 0; r < matrix.length; r++) {
                 for (let c = 0; c < maxCols; c++) {
                     const cell = matrix[r][c] ? String(matrix[r][c]).trim() : "";
@@ -612,7 +957,7 @@
             if (!file) return;
             window.isBackupMode = false; 
             const statusIndicator = document.getElementById('info-status');
-            const dateMatch = file.name.match(/(20\d{6})/); // 파일명 내 8자리 날짜(괄호 유무 무관) 추출
+            const dateMatch = file.name.match(/(20\d{6})/); 
             if (dateMatch) {
                 currentFileDate = dateMatch[1];
                 let y = currentFileDate.substring(0,4), m = currentFileDate.substring(4,6), dStr = currentFileDate.substring(6,8);
@@ -626,8 +971,9 @@
                 const days = ['일', '월', '화', '수', '목', '금', '토'];
                 statusIndicator.innerText = `📅 ${d.getMonth()+1}월 ${d.getDate()}일(${days[d.getDay()]})`;
             }
-            statusIndicator.style.backgroundColor = '#e8f5e9';
-            statusIndicator.style.color = '#27ae60';
+            statusIndicator.style.backgroundColor = 'var(--tn-green-bg)';
+            statusIndicator.style.color = 'var(--tn-green-tx)';
+            statusIndicator.style.borderColor = 'var(--tn-green-bd)';
 
             manualOverrides = {};
             let history = JSON.parse(localStorage.getItem('smartAttendanceHistory') || '{}');
@@ -674,10 +1020,14 @@
                     if(!id) continue;
 
                     if (name.includes('귀가외출') || name.includes('귀가')) {
-                        let type = row[colMap["구분"]] || "";
-                        if(type) attendanceDB.귀가[id] = { 구분: type, 시간: row[colMap["시간"]] || "", 사유: row[colMap["사유"]] || "" };
+                        let type = String(row[colMap["구분"]] || "").trim();
+                        const validTypes = ["귀가","조퇴","결석","무단결석","미입사","명령퇴사","자진퇴사","병결","외출"];
+                        if(validTypes.includes(type)) {
+                            if(!attendanceDB.귀가[id]) {
+                                attendanceDB.귀가[id] = { 구분: type, 시간: row[colMap["시간"]] || "", 사유: row[colMap["사유"]] || "" };
+                            }
+                        }
                     } else if (name.includes('외출')) {
-                        // 중복행 병합: 이미 등록된 학생이면 교시별 O값 누적
                         let p1 = row[colMap["1교시"]] || "", p2 = row[colMap["2교시"]] || "", p3 = row[colMap["3교시"]] || "";
                         if (attendanceDB.외출[id]) {
                             if (p1 === 'O') attendanceDB.외출[id].p1 = 'O';
@@ -688,14 +1038,12 @@
                             attendanceDB.외출[id] = { p1, p2, p3, 비고: row[colMap["비고"]] || "" };
                         }
                     } else if (name.includes('교내활동')) {
-                        // 중복행 병합: 장소가 다른 교시별로 두 번 입력된 경우 교시별 O값 누적
                         let p1 = row[colMap["1교시"]] || "", p2 = row[colMap["2교시"]] || "", p3 = row[colMap["3교시"]] || "";
                         let 장소 = row[colMap["장소"]] || "";
                         if (attendanceDB.교내활동[id]) {
                             if (p1 === 'O') attendanceDB.교내활동[id].p1 = 'O';
                             if (p2 === 'O') attendanceDB.교내활동[id].p2 = 'O';
                             if (p3 === 'O') attendanceDB.교내활동[id].p3 = 'O';
-                            // 장소가 다른 경우 이어붙이기
                             if (장소 && attendanceDB.교내활동[id].장소 !== 장소) {
                                 attendanceDB.교내활동[id].장소 = attendanceDB.교내활동[id].장소
                                     ? attendanceDB.교내활동[id].장소 + ' / ' + 장소
@@ -774,27 +1122,21 @@
                     if (attendanceDB.외출 && attendanceDB.외출[id] && attendanceDB.외출[id][pKey] === 'O') finalStatus = "외출";
                     if (attendanceDB.귀가 && attendanceDB.귀가[id]) finalStatus = attendanceDB.귀가[id].구분;
 
-                    // ── 중복신청 감지 (모든 경우의 수) ──────────────────
-                    // 1) 교시별 O값 체크 시트 (교내활동/외출/도서관/쉼터)
                     const 교시체크시트 = ['교내활동', '외출', '도서관', '쉼터'];
-                    const 교시중복목록 = 교시체크시트.filter(s => attendanceDB[s] && attendanceDB[s][id] && attendanceDB[s][id][pKey] === 'O');
+                    const 교시중복목록 = 교시체크시트.filter(sheetName => attendanceDB[sheetName] && attendanceDB[sheetName][id] && attendanceDB[sheetName][id][pKey] === 'O');
 
-                    // 2) 자승가강: 해당 교시에 적용되는지 여부
                     let 자승가강적용 = false;
                     if (attendanceDB.자승가강 && attendanceDB.자승가강[id]) {
                         const d = attendanceDB.자승가강[id];
                         자승가강적용 = (d.p1 || d.p2) ? d[pKey] === 'O' : true;
                     }
 
-                    // 3) 귀가: 교시 구분 없이 전 교시 일괄 적용 → 다른 시트와 겹치면 중복
                     const 귀가적용 = !!(attendanceDB.귀가 && attendanceDB.귀가[id]);
 
-                    // 4) 중복 판정
                     const 중복후보수 = 교시중복목록.length + (자승가강적용 ? 1 : 0) + (귀가적용 ? 1 : 0);
                     if (중복후보수 >= 2) {
                         finalStatus = "중복신청";
                     }
-                    // ────────────────────────────────────────────────────
 
                     if (manualOverrides[id] && manualOverrides[id][pKey]) {
                         finalStatus = manualOverrides[id][pKey].status;
@@ -843,29 +1185,28 @@
             document.getElementById('modal-title').innerText = `${id} ${s.name}`;
             let currentStatus = document.getElementById(`tag-${id}`).innerText;
             const pKey = activePeriod === 1 ? 'p1' : (activePeriod === 2 ? 'p2' : 'p3');
-            let modalHtml = `<p><strong>현재 ${activePeriod}교시 상태 :</strong> <span style="font-weight:bold; color:#e53e3e;">${currentStatus}</span></p>`;
+            let modalHtml = `<p><strong>현재 ${activePeriod}교시 상태 :</strong> <span style="font-weight:bold; color:var(--out-bar);">${currentStatus}</span></p>`;
 
             if (window.isBackupMode) {
-                 modalHtml += `<hr><p style="color:#8e44ad; font-size:13px;"><strong>[엑셀 백업 복원 모드]</strong><br>정보를 수정할 수 없습니다.</p>`;
+                 modalHtml += `<hr><p style="color:var(--accent); font-size:13px;"><strong>[엑셀 백업 복원 모드]</strong><br>정보를 수정할 수 없습니다.</p>`;
                  let memo = (window.currentBackupViewData && window.currentBackupViewData[id] && window.currentBackupViewData[id].memo) ? window.currentBackupViewData[id].memo : "";
-                 if (memo) modalHtml += `<hr><p style="color:#e53e3e;"><strong>[백업된 수동 메모]</strong><br>📝 ${memo}</p>`;
+                 if (memo) modalHtml += `<hr><p style="color:var(--out-bar);"><strong>[백업된 수동 메모]</strong><br>📝 ${memo}</p>`;
             } else {
                 if (attendanceDB.귀가 && attendanceDB.귀가[id]) {
                     const d = attendanceDB.귀가[id];
-                    modalHtml += `<hr><p style="color:#718096; font-size:12px;"><strong>[엑셀: 귀가/퇴사/조퇴]</strong><br>• 구분: ${d.구분}<br>• 시간: ${d.시간}<br>• 사유: ${d.사유}</p>`;
+                    modalHtml += `<hr><p style="color:var(--text-sub); font-size:12px;"><strong>[엑셀: 귀가/퇴사/조퇴]</strong><br>• 구분: ${d.구분}<br>• 시간: ${d.시간}<br>• 사유: ${d.사유}</p>`;
                 }
                 if (attendanceDB.외출 && attendanceDB.외출[id]) {
                     const d = attendanceDB.외출[id];
-                    modalHtml += `<hr><p style="color:#718096; font-size:12px;"><strong>[엑셀: 외출]</strong><br>• 비고: ${d.비고 || '비고 없음'}</p>`;
+                    modalHtml += `<hr><p style="color:var(--text-sub); font-size:12px;"><strong>[엑셀: 외출]</strong><br>• 비고: ${d.비고 || '비고 없음'}</p>`;
                 }
                 if (attendanceDB.교내활동 && attendanceDB.교내활동[id]) {
                     const d = attendanceDB.교내활동[id];
-                    modalHtml += `<hr><p style="color:#718096; font-size:12px;"><strong>[엑셀: 교내활동]</strong><br>• 장소: ${d.장소 || '장소 정보 없음'}</p>`;
+                    modalHtml += `<hr><p style="color:var(--text-sub); font-size:12px;"><strong>[엑셀: 교내활동]</strong><br>• 장소: ${d.장소 || '장소 정보 없음'}</p>`;
                 }
-                // 중복신청 경고 안내 (모든 시트 조합)
                 {
                     const 교시체크시트 = ['교내활동', '외출', '도서관', '쉼터'];
-                    const 교시중복목록 = 교시체크시트.filter(s => attendanceDB[s] && attendanceDB[s][id] && attendanceDB[s][id][pKey] === 'O');
+                    const 교시중복목록 = 교시체크시트.filter(sheetName => attendanceDB[sheetName] && attendanceDB[sheetName][id] && attendanceDB[sheetName][id][pKey] === 'O');
                     let 자승가강적용 = false;
                     if (attendanceDB.자승가강 && attendanceDB.자승가강[id]) {
                         const d = attendanceDB.자승가강[id];
@@ -874,7 +1215,7 @@
                     const 귀가적용 = !!(attendanceDB.귀가 && attendanceDB.귀가[id]);
                     const 중복전체목록 = [...교시중복목록, ...(자승가강적용 ? ['자승가강'] : []), ...(귀가적용 ? ['귀가/퇴사'] : [])];
                     if (중복전체목록.length >= 2) {
-                        modalHtml += `<hr><p style="color:#d53f8c; font-size:13px; font-weight:bold;">⚠️ 중복신청 감지<br><span style="font-weight:normal; font-size:12px;">${activePeriod}교시에 [${중복전체목록.join(', ')}]이(가) 동시에 신청되어 있습니다.<br>수동으로 올바른 상태를 선택해 주세요.</span></p>`;
+                        modalHtml += `<hr><p style="color:var(--dup-tx); font-size:13px; font-weight:bold;">⚠️ 중복신청 감지<br><span style="font-weight:normal; font-size:12px;">${activePeriod}교시에 [${중복전체목록.join(', ')}]이(가) 동시에 신청되어 있습니다.<br>수동으로 올바른 상태를 선택해 주세요.</span></p>`;
                     }
                 }
 
@@ -882,7 +1223,7 @@
                 if(manualOverrides[id] && manualOverrides[id][pKey]) {
                     savedMemo = manualOverrides[id][pKey].memo;
                     savedStatus = manualOverrides[id][pKey].status;
-                    modalHtml += `<hr><p style="color:#e53e3e;"><strong>[선생님 수동 메모 (${activePeriod}교시)]</strong><br>📝 ${savedMemo || '메모 없음'}</p>`;
+                    modalHtml += `<hr><p style="color:var(--out-bar);"><strong>[선생님 수동 메모 (${activePeriod}교시)]</strong><br>📝 ${savedMemo || '메모 없음'}</p>`;
                 } else if (["외출", "귀가", "조퇴", "결석", "무단결석", "병결", "교내활동", "상담", "도서관", "쉼터", "자승가강", "미입사", "명령퇴사", "자진퇴사"].includes(currentStatus)) {
                     savedStatus = currentStatus; 
                 }
@@ -909,15 +1250,15 @@
                         </select>
                         <input type="text" id="edit-memo" class="edit-input" placeholder="이유나 메모를 입력하세요 (선택)" value="${savedMemo}">
                         <button class="btn-save" onclick="applyManualEdit('${id}')">저장 및 적용하기</button>
-                        <p style="font-size:11px; color:#e53e3e; margin-top:8px; text-align:center; font-weight:bold; word-break:keep-all;">
+                        <p style="font-size:11px; color:var(--out-bar); margin-top:8px; text-align:center; font-weight:bold; word-break:keep-all;">
                             ※ 조퇴, 귀가, 결석, 퇴사, 미입사는 1~3교시 전체로 일괄 적용됩니다.
                         </p>
-                        ${manualOverrides[id] && manualOverrides[id][pKey] ? `<button onclick="cancelManualEdit('${id}')" style="width:100%; margin-top:8px; padding:10px; background:transparent; border:1px solid #a0aec0; color:#718096; border-radius:6px; cursor:pointer; font-weight:bold;">수동 변경 취소 (해당 교시 원상복구)</button>` : ''}
+                        ${manualOverrides[id] && manualOverrides[id][pKey] ? `<button onclick="cancelManualEdit('${id}')" style="width:100%; margin-top:8px; padding:10px; background:transparent; border:1px solid var(--line-strong); color:var(--text-sub); border-radius:var(--radius-sm, 6px); cursor:pointer; font-weight:bold;">수동 변경 취소 (해당 교시 원상복구)</button>` : ''}
                     </div>
                 `;
             }
             document.getElementById('modal-body').innerHTML = modalHtml;
-            document.getElementById('detail-modal').style.display = 'flex';
+            showModal('detail-modal');
         }
 
         function applyManualEdit(id) {
@@ -946,10 +1287,6 @@
             saveToHistory(); syncAttendance(); closeModal();
         }
 
-        // =========================================================
-        // 파일 저장 (showSaveFilePicker - 안드로이드 안정)
-        // =========================================================
-        // [모바일 수정] 모바일(안드로이드/iOS) 여부 — File System Access 쓰기가 불안정한 환경
         function isMobileDevice() {
             try { if (navigator.userAgentData && navigator.userAgentData.mobile) return true; } catch(e) {}
             let ua = navigator.userAgent || "";
@@ -978,10 +1315,8 @@
                     return { success: true, savedName: handle.name };
                 } catch (e) {
                     if (e.name === 'AbortError') return { success: false, aborted: true };
-                    // showSaveFilePicker 실패 시 기존 방식으로 폴백
                 }
             }
-            // 폴백: 기존 다운로드 방식
             let url = window.URL.createObjectURL(blob);
             let a = document.createElement("a");
             a.style.display = "none";
@@ -993,9 +1328,6 @@
             return { success: true, savedName: fileName, fallback: true };
         }
 
-        // =========================================================
-        // 내보내기 & 카톡 공유 (텍스트 요약 지원)
-        // =========================================================
         function exportAttendance() {
             if (Object.keys(studentMap).length === 0) { alert("배치도를 먼저 로드해주세요."); return; }
             let ws_data = [["학번", "이름", "상태(3교시)"]];
@@ -1004,7 +1336,6 @@
             
             let dStrForText = currentDisplayDate || "오늘";
             let titlePrefix = currentGradePrefix ? currentGradePrefix.replace('_', ' ') : "";
-            // 변경된 부분: 이탈자 명단 -> 부재자 명단
             let textSummary = `[${titlePrefix}${dStrForText} 3교시 부재자 명단]\n\n`;
             let count = 0;
 
@@ -1033,18 +1364,16 @@
                 }
             });
             
-            // 변경된 부분: 이탈자 없음 -> 부재자 없음
             if(count === 0) textSummary += "부재자 없음\n";
 
             document.getElementById('export-summary-text').value = textSummary;
-            document.getElementById('smart-export-modal').style.display = 'flex';
+            showModal('smart-export-modal');
         }
 
         function shareExportText() {
             const text = document.getElementById('export-summary-text').value;
             if (navigator.share) {
                 navigator.share({
-                    // 변경된 부분: 이탈자 명단 -> 부재자 명단
                     title: '3교시 부재자 명단',
                     text: text
                 }).catch(err => console.log("공유 취소됨"));
@@ -1079,9 +1408,8 @@
             if (db.교내활동 && db.교내활동[id] && db.교내활동[id][pKey] === 'O') finalStatus = "교내활동";
             if (db.외출 && db.외출[id] && db.외출[id][pKey] === 'O') finalStatus = "외출";
             if (db.귀가 && db.귀가[id]) finalStatus = db.귀가[id].구분;
-            // 중복신청 감지 (모든 경우의 수)
             const 교시체크시트 = ['교내활동', '외출', '도서관', '쉼터'];
-            const 교시중복목록 = 교시체크시트.filter(s => db[s] && db[s][id] && db[s][id][pKey] === 'O');
+            const 교시중복목록 = 교시체크시트.filter(sheetName => db[sheetName] && db[sheetName][id] && db[sheetName][id][pKey] === 'O');
             let 자승가강적용 = false;
             if (db.자승가강 && db.자승가강[id]) {
                 const d = db.자승가강[id];
@@ -1098,9 +1426,6 @@
             return { status: finalStatus, memo: memo };
         }
 
-        // =========================================================
-        // [안드로이드 전용] 날짜 기반 타임스탬프 백업 시스템
-        // =========================================================
         function downloadHistoryExcel(year) {
             try {
                 let history = JSON.parse(localStorage.getItem('smartAttendanceHistory') || '{}');
@@ -1129,7 +1454,6 @@
                 
                 let wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
                 
-                // 안드로이드에서 파일명 중복을 피하기 위해 시간/분 초까지 기록하는 타임스탬프 적용
                 let now = new Date();
                 let timeStr = `${String(now.getMonth()+1).padStart(2,'0')}월${String(now.getDate()).padStart(2,'0')}일_${String(now.getHours()).padStart(2,'0')}시${String(now.getMinutes()).padStart(2,'0')}분`;
                 let fileName = `${currentGradePrefix}출결기록_${year}년_백업(${timeStr}).xlsx`;
@@ -1149,9 +1473,6 @@
             }
         }
 
-        // =========================================================
-        // 백업 불러오기 (달력 UI 적용)
-        // =========================================================
         function loadFromYearlyBackup(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -1256,18 +1577,16 @@
                 let hasData = availableDates.includes(dStr);
                 
                 let dayClass = "cal-day";
-                let onClick = "";
                 let colorStyle = "";
 
                 let currentDayOfWeek = new Date(year, month - 1, d).getDay();
                 if(!hasData) {
-                   if(currentDayOfWeek === 0) colorStyle = "style='color:#fc8181;'";
-                   if(currentDayOfWeek === 6) colorStyle = "style='color:#63b3ed;'";
+                   if(currentDayOfWeek === 0) colorStyle = "style='color:var(--out-bar); opacity: 0.5;'";
+                   if(currentDayOfWeek === 6) colorStyle = "style='color:var(--sch-bar); opacity: 0.5;'";
                 }
 
                 if (hasData) {
                     dayClass += " has-data";
-                    onClick = `onclick="renderBackupDate('${dStr}')"`;
                     colorStyle = ""; 
                 }
                 
@@ -1279,8 +1598,8 @@
             }
             html += `</div>`;
             
-            html += `<div style="margin-top:20px; font-size:13px; color:#718096; text-align:center; background:#f8fafc; padding:10px; border-radius:8px;">
-                💡 <b>파란색</b>으로 활성화된 날짜를 터치하면<br>해당 일자의 출결 상태가 즉시 복원됩니다.
+            html += `<div style="margin-top:20px; font-size:13px; color:var(--text-sub); text-align:center; background:var(--surface-2); padding:10px; border-radius:var(--radius-sm, 8px);">
+                💡 <b>테마 색상</b>으로 활성화된 날짜를 터치하면<br>해당 일자의 출결 상태가 즉시 복원됩니다.
             </div>`;
             
             document.getElementById('modal-body').innerHTML = html;
@@ -1299,7 +1618,6 @@
             renderBackupCalendar(newYear, newMonth);
         }
 
-        // [모바일 수정] 달력 날짜 탭을 위임 방식으로 처리(인라인 onclick 미동작 환경 대비, 1회 등록)
         if (!window.__backupCalDelegationBound) {
             document.addEventListener('click', function(ev){
                 let cell = ev.target.closest && ev.target.closest('[data-backup-date]');
@@ -1315,8 +1633,9 @@
             const statusIndicator = document.getElementById('info-status');
             let displayD = window.tempBackupDisplayDates[dateStr] || `${dateStr.substring(4,6)}월 ${dateStr.substring(6,8)}일`;
             statusIndicator.innerText = `📂 복원: ${displayD.split('(')[0]}`;
-            statusIndicator.style.backgroundColor = '#f4ecf7';
-            statusIndicator.style.color = '#8e44ad';
+            statusIndicator.style.backgroundColor = 'var(--cns-bg)';
+            statusIndicator.style.color = 'var(--cns-tx)';
+            statusIndicator.style.borderColor = 'var(--cns-bd)';
             checkPastModeUI();
             syncAttendance(); closeModal();
         }
@@ -1335,18 +1654,18 @@
             let keys = Object.keys(history).sort().reverse(); 
             let years = [...new Set(keys.map(k => k.substring(0,4)))];
             
-            let html = `<div style="margin-bottom: 15px; padding: 12px; background: #e8f4fd; border-radius: 8px;">`;
-            html += `<div style="font-size: 13px; font-weight: bold; color: #2980b9; margin-bottom: 8px;">💾 연도별 백업 저장 (공유/내보내기)</div>`;
+            let html = `<div style="margin-bottom: 15px; padding: 12px; background: var(--sch-bg); border-radius: var(--radius-sm, 10px); border: var(--bd-w, 1px) solid var(--sch-bd);">`;
+            html += `<div style="font-size: 13px; font-weight: 900; color: var(--sch-tx); margin-bottom: 8px;">💾 연도별 백업 저장 (공유/내보내기)</div>`;
             if(years.length > 0) {
-                html += `<div>`; years.forEach(yr => { html += `<button class="export-btn" onclick="downloadHistoryExcel('${yr}')">📥 ${yr}년 백업 내보내기</button>`; }); html += `</div>`;
+                html += `<div>`; years.forEach(yr => { html += `<button class="export-btn" style="background:var(--sch-bar); border-color:var(--sch-bar); color:white;" onclick="downloadHistoryExcel('${yr}')">📥 ${yr}년 백업 내보내기</button>`; }); html += `</div>`;
             } else {
-                html += `<div style="font-size:12px; color:#7f8c8d;">저장된 기록이 없어 백업할 수 없습니다.</div>`;
+                html += `<div style="font-size:12px; color:var(--text-sub);">저장된 기록이 없어 백업할 수 없습니다.</div>`;
             }
-            html += `<hr style="border-top:1px dashed #b9d8ff; margin:10px 0;"><div style="font-size: 12px; color: #555; margin-bottom: 5px;">👇 보관 중인 엑셀 백업 파일을 엽니다.</div>`;
-            html += `<label for="backup-file-input" class="upload-label">📂 백업 엑셀 파일 불러오기</label><input type="file" id="backup-file-input" accept=".xlsx" onclick="this.value=null;" onchange="loadFromYearlyBackup(event)"></div>`;
+            html += `<hr style="border-top:1px dashed var(--sch-bd); margin:10px 0;"><div style="font-size: 12px; color: var(--text-sub); margin-bottom: 5px;">👇 보관 중인 엑셀 백업 파일을 엽니다.</div>`;
+            html += `<label for="backup-file-input" class="upload-label" style="background:var(--cns-bar); border-color:var(--cns-bar);">📂 백업 엑셀 파일 불러오기</label><input type="file" id="backup-file-input" accept=".xlsx" onclick="this.value=null;" onchange="loadFromYearlyBackup(event)"></div>`;
 
-            html += `<div style="margin-bottom: 15px; padding: 12px; background: #fdf2e9; border-radius: 8px;">`;
-            html += `<div style="font-size: 13px; font-weight: bold; color: #d35400; margin-bottom: 8px;">🔍 기기에 저장된 날짜 찾기</div>`;
+            html += `<div style="margin-bottom: 15px; padding: 12px; background: var(--spc-bg); border-radius: var(--radius-sm, 10px); border: var(--bd-w, 1px) solid var(--spc-bd);">`;
+            html += `<div style="font-size: 13px; font-weight: 900; color: var(--spc-tx); margin-bottom: 8px;">🔍 기기에 저장된 날짜 찾기</div>`;
             
             if(keys.length > 0) {
                 let grouped = {};
@@ -1356,7 +1675,7 @@
                     grouped[ym].push(k);
                 });
 
-                html += `<select id="local-date-select" class="native-select"><option value="">-- 과거 날짜를 선택하세요 --</option>`;
+                html += `<select id="local-date-select" class="native-select" style="border-color:var(--spc-bar); color:var(--spc-bar);"><option value="">-- 과거 날짜를 선택하세요 --</option>`;
                 for(let ym in grouped) {
                     let year = ym.substring(0,4);
                     let month = ym.substring(4,6);
@@ -1366,24 +1685,24 @@
                     });
                     html += `</optgroup>`;
                 }
-                html += `</select><button class="load-btn" onclick="searchLocalHistoryByDropdown()">해당 날짜 불러오기</button>`;
+                html += `</select><button class="load-btn" style="background:var(--spc-bar);" onclick="searchLocalHistoryByDropdown()">해당 날짜 불러오기</button>`;
             } else {
-                html += `<div style="font-size:12px; color:#d35400;">저장된 과거 기록이 없습니다.</div>`;
+                html += `<div style="font-size:12px; color:var(--spc-tx);">저장된 과거 기록이 없습니다.</div>`;
             }
             html += `</div>`;
 
-            html += `<div style="font-size: 13px; font-weight: bold; color: #2c3e50; margin-bottom: 8px;">최근 7일 기기 저장 기록</div>`;
+            html += `<div style="font-size: 13px; font-weight: 900; color: var(--text); margin-bottom: 8px;">최근 7일 기기 저장 기록</div>`;
             let recentKeys = keys.slice(0, 7);
             
             if(recentKeys.length === 0) {
-                html += `<p style="text-align:center; color:#7f8c8d; font-size:12px; margin-top:20px;">저장된 기록이 없습니다.</p>`;
+                html += `<p style="text-align:center; color:var(--text-sub); font-size:12px; margin-top:20px;">저장된 기록이 없습니다.</p>`;
             } else {
-                html += `<div style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px;">`;
+                html += `<div style="max-height: 180px; overflow-y: auto; border: var(--bd-w, 1px) solid var(--line); border-radius: var(--radius-sm, 10px); padding: 5px; background:var(--surface-2);">`;
                 recentKeys.forEach(k => { html += `<button class="history-btn" onclick="loadHistoryData('${k}')">📅 ${history[k].displayDate}</button>`; });
                 html += `</div>`;
             }
             document.getElementById('modal-body').innerHTML = html;
-            document.getElementById('detail-modal').style.display = 'flex';
+            showModal('detail-modal');
         }
 
         function loadHistoryData(dateKey) {
@@ -1396,18 +1715,65 @@
                 currentDisplayDate = history[dateKey].displayDate;
                 const statusIndicator = document.getElementById('info-status');
                 statusIndicator.innerText = `🕰️ 과거 기록: ${history[dateKey].displayDate.split('(')[0].trim()}`;
-                statusIndicator.style.backgroundColor = '#fcf3cf';
-                statusIndicator.style.color = '#b9770e';
+                statusIndicator.style.backgroundColor = 'var(--rst-bg)';
+                statusIndicator.style.color = 'var(--rst-tx)';
+                statusIndicator.style.borderColor = 'var(--rst-bd)';
                 checkPastModeUI();
                 syncAttendance(); closeModal();
             }
         }
 
-        function closeModal() {
-            document.getElementById('detail-modal').style.display = 'none';
-            document.getElementById('smart-export-modal').style.display = 'none';
-            document.getElementById('title-modal').style.display = 'none';
+        function openMemoModal(dateKey) {
+            const history = JSON.parse(localStorage.getItem('smartAttendanceHistory') || '{}');
+            const dateLabel = dateKey
+                ? ((history[dateKey] && history[dateKey].displayDate) || dateKey)
+                : (currentDisplayDate || currentFileDate || '오늘');
+            document.getElementById('memo-modal-date').innerText = '📅 ' + dateLabel;
+            document.getElementById('quick-memo-modal').dataset.dateKey = dateKey || '';
+            const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
+            const key = dateKey || currentFileDate || '';
+            document.getElementById('quick-memo-textarea').value = memos[key] || '';
+            showModal('quick-memo-modal');
+            setTimeout(() => document.getElementById('quick-memo-textarea').focus(), 100);
         }
+        
+        function closeMemoModal() {
+            closeModal('quick-memo-modal');
+        }
+        
+        function saveMemoModal() {
+            const key = document.getElementById('quick-memo-modal').dataset.dateKey || currentFileDate || '';
+            const text = document.getElementById('quick-memo-textarea').value;
+            const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
+            if(text.trim()) { memos[key] = text; }
+            else { delete memos[key]; }
+            localStorage.setItem('quickMemos', JSON.stringify(memos));
+            closeMemoModal();
+            showMemoIndicator(key);
+        }
+        
+        function showMemoIndicator(key) {
+            const memos = JSON.parse(localStorage.getItem('quickMemos') || '{}');
+            document.querySelectorAll('.history-btn-wrap').forEach(wrap => { if(!wrap) return;
+                const k = wrap.dataset.dateKey;
+                const dot = wrap.querySelector('.memo-dot');
+                if(dot) dot.style.display = memos[k] ? 'inline' : 'none';
+            });
+        }
+
+        function setTheme(name) {
+            document.body.className = name ? 'theme-' + name : '';
+            localStorage.setItem('studyTheme', name);
+            document.querySelectorAll('.theme-opt').forEach(el => el.classList.remove('active'));
+            const el = document.getElementById('th-' + (name || 'default'));
+            if(el) el.classList.add('active');
+            document.getElementById('theme-panel').classList.remove('open');
+        }
+        function toggleThemePanel() {
+            document.getElementById('theme-panel').classList.toggle('open');
+        }
+        (function(){ const t = localStorage.getItem('studyTheme'); if(t) setTheme(t); })();
+        
     </script>
 </body>
 </html>
