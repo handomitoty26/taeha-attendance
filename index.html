@@ -507,6 +507,8 @@
             .seat-box .s-name { font-size: 10px; }
             .seat-box .s-tag  { font-size: 7.5px; padding: 0px 3px; }
         }
+            #info-status { display: none !important; }
+        .file-label.linked, .action-btn.linked { background: var(--tn-green-bg) !important; color: var(--tn-green-tx) !important; border-color: var(--tn-green-bd) !important; }
     </style>
 
     <script>
@@ -745,7 +747,10 @@
         // 전역 변수 및 데이터 처리 로직
         // =========================================================
         let studentMap = {};    
-        let attendanceDB = {};  
+        let attendanceDB = {};
+        // [v1.x] O/o/0 정규화 헬퍼 (대문자 O뿐 아니라 소문자 o, 숫자 0도 인식)
+        function oMark(v){ const s=String(v==null?'':v).trim(); return (s==='O'||s==='o'||s==='0')?'O':s; }
+  
         let manualOverrides = {}; 
         let activePeriod = 1;   
         let hasLayout = false;
@@ -767,7 +772,7 @@
 
             if (isPast) {
                 btnReturn.style.display = 'inline-block';
-                labelStatus.style.display = 'none'; 
+                labelStatus.style.display = hasLayout ? 'inline-block' : 'none'; 
             } else {
                 btnReturn.style.display = 'none';
                 labelStatus.style.display = hasLayout ? 'inline-block' : 'none';
@@ -1080,7 +1085,7 @@
                             }
                         }
                     } else if (name.includes('외출')) {
-                        let p1 = row[colMap["1교시"]] || "", p2 = row[colMap["2교시"]] || "", p3 = row[colMap["3교시"]] || "";
+                        let p1 = oMark(row[colMap["1교시"]]), p2 = oMark(row[colMap["2교시"]]), p3 = oMark(row[colMap["3교시"]]);
                         if (attendanceDB.외출[id]) {
                             if (p1 === 'O') attendanceDB.외출[id].p1 = 'O';
                             if (p2 === 'O') attendanceDB.외출[id].p2 = 'O';
@@ -1090,7 +1095,7 @@
                             attendanceDB.외출[id] = { p1, p2, p3, 비고: row[colMap["비고"]] || "" };
                         }
                     } else if (name.includes('교내활동')) {
-                        let p1 = row[colMap["1교시"]] || "", p2 = row[colMap["2교시"]] || "", p3 = row[colMap["3교시"]] || "";
+                        let p1 = oMark(row[colMap["1교시"]]), p2 = oMark(row[colMap["2교시"]]), p3 = oMark(row[colMap["3교시"]]);
                         let 장소 = row[colMap["장소"]] || "";
                         if (attendanceDB.교내활동[id]) {
                             if (p1 === 'O') attendanceDB.교내활동[id].p1 = 'O';
@@ -1105,11 +1110,11 @@
                             attendanceDB.교내활동[id] = { p1, p2, p3, 장소 };
                         }
                     } else if (name.includes('도서관')) {
-                        attendanceDB.도서관[id] = { p1: row[colMap["1교시"]] || "", p2: row[colMap["2교시"]] || "", p3: row[colMap["3교시"]] || "", 비고: row[colMap["비고"]] || "" };
+                        attendanceDB.도서관[id] = { p1: oMark(row[colMap["1교시"]]), p2: oMark(row[colMap["2교시"]]), p3: oMark(row[colMap["3교시"]]), 비고: row[colMap["비고"]] || "" };
                     } else if (name.includes('쉼터')) {
-                        attendanceDB.쉼터[id] = { p1: row[colMap["1교시"]] || "", p2: row[colMap["2교시"]] || "", p3: row[colMap["3교시"]] || "", 비고: row[colMap["비고"]] || "" };
+                        attendanceDB.쉼터[id] = { p1: oMark(row[colMap["1교시"]]), p2: oMark(row[colMap["2교시"]]), p3: oMark(row[colMap["3교시"]]), 비고: row[colMap["비고"]] || "" };
                     } else if (name.includes('자승가강')) {
-                        let p1 = row[colMap["1교시"]] || "", p2 = row[colMap["2교시"]] || "", apply = row[colMap["적용여부"]] || row[colMap["적용 여부"]] || "";
+                        let p1 = oMark(row[colMap["1교시"]]), p2 = oMark(row[colMap["2교시"]]), apply = oMark(row[colMap["적용여부"]] || row[colMap["적용 여부"]]);
                         if(p1 === 'O' || p2 === 'O' || apply === 'O') {
                             attendanceDB.자승가강[id] = { p1: p1, p2: p2, 기간: row[colMap["기간"]] || "", 사유: row[colMap["사유"]] || "", 비고: row[colMap["비고"]] || "" };
                         }
@@ -2135,6 +2140,41 @@
                 if(typeof google!=="undefined"&&google.accounts&&google.accounts.oauth2){clearInterval(t); setTimeout(()=>driveBackupNow(false),1500);}
                 else if(tries>20)clearInterval(t);
             },500);
+        })();
+
+
+        // [v1.x] 출석연동 버튼에 날짜 통합 표시 + 길게 눌러 연동 해제
+        function doUnlinkAttendance(){
+            if(!confirm('출석부 연동을 해제할까요?\n불러온 외출·교내활동·귀가 등 연동 데이터가 제거되고 전원 자습중으로 돌아갑니다.')) return;
+            attendanceDB = { 귀가:{}, 외출:{}, 교내활동:{}, 도서관:{}, 쉼터:{}, 자승가강:{} };
+            const info=document.getElementById('info-status');
+            if(info){ info.innerText='출석연동'; info.style.backgroundColor=''; info.style.color='var(--accent)'; info.style.borderColor=''; }
+            try{ if(typeof manualOverrides!=='undefined') manualOverrides={}; }catch(e){}
+            if(typeof saveToHistory==='function') saveToHistory();
+            if(typeof syncAttendance==='function') syncAttendance();
+            if(typeof showToast==='function') showToast('출석부 연동 해제됨');
+        }
+        (function(){
+            const label = document.getElementById('label-status');
+            const info  = document.getElementById('info-status');
+            if(!label || !info) return;
+            function syncLabel(){
+                const t=(info.innerText||'').trim();
+                if(t && t.indexOf('📅')!==-1){ label.innerText=t; label.classList.add('linked'); label.title='탭: 다른 날짜 연동 · 길게 누르면 연동 해제'; }
+                else { label.innerText='📊 출석연동'; label.classList.remove('linked'); label.title='출석부 파일 연동'; }
+            }
+            new MutationObserver(syncLabel).observe(info,{childList:true,characterData:true,subtree:true});
+            syncLabel();
+            // 길게 누르기(0.6초) → 연동 해제
+            let timer=null, longFired=false;
+            const start=()=>{ longFired=false; timer=setTimeout(()=>{ longFired=true; doUnlinkAttendance(); }, 600); };
+            const cancel=()=>{ if(timer){clearTimeout(timer);timer=null;} };
+            label.addEventListener('pointerdown', start);
+            label.addEventListener('pointerup', cancel);
+            label.addEventListener('pointerleave', cancel);
+            label.addEventListener('pointercancel', cancel);
+            // 길게 눌러 해제된 경우 이어지는 파일선택 클릭 차단
+            label.addEventListener('click', function(e){ if(longFired){ e.preventDefault(); e.stopPropagation(); longFired=false; } }, true);
         })();
 
 </script>
