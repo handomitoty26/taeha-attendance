@@ -14,6 +14,7 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <style>
         /* =========================================================
@@ -37,8 +38,8 @@
         }
 
         /* 상단 헤더 & 통계 (고정 영역) */
-        .header-container { background: var(--surface); padding: 15px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); margin: 10px 10px 0 10px; display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; gap: 10px; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
-        .stats-bar { display: flex; gap: 8px; margin: 10px; background: var(--surface); padding: 12px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); font-size: 13px; font-weight: bold; justify-content: space-around; flex-wrap: wrap; flex: 0 0 auto; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
+        .header-container { background: var(--surface); padding: 8px 14px; border-radius: var(--radius); box-shadow: var(--sh-1); margin: 8px 8px 0 8px; display: flex; justify-content: space-between; align-items: center; flex: 0 0 auto; gap: 8px; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
+        .stats-bar { display: flex; gap: 6px; margin: 6px 10px; background: var(--surface); padding: 7px 14px; border-radius: var(--radius); box-shadow: var(--sh-1); font-size: 11px; font-weight: bold; justify-content: flex-start; flex-wrap: nowrap; gap: 4px; flex: 0 0 auto; border: var(--bd-w, 1px) solid var(--line); transition: all 0.3s ease; }
         
         /* 메인 명단 (스크롤 없이 꽉 차는 영역) */
         .scrollable-area {
@@ -46,30 +47,31 @@
             display: flex;
             flex-direction: column;
             overflow: hidden; 
-            padding: 0 10px 10px 10px;
+            padding: 0 8px 8px 8px;
             box-sizing: border-box;
         }
 
         /* UI 세부 디자인 */
-        .header-left { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-        .header-center { flex: 1; display: flex; justify-content: center; text-align: center; }
-        .header-right { flex: 2; display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .header-left { flex: 0 0 auto; display: flex; flex-direction: row; align-items: center; gap: 6px; }
+        .header-center { flex: 1; min-width: 0; display: flex; justify-content: center; text-align: center; padding: 0 6px; }
+        .header-right { flex: 1 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 5px; flex-wrap: nowrap; }
         
-        .main-title { font-size: 22px; font-weight: 900; color: var(--text); margin: 0; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px dashed transparent; letter-spacing: -0.02em; transition: 0.2s; }
+        .main-title { font-size: 15px; white-space: nowrap; font-weight: 900; color: var(--text); margin: 0; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px dashed transparent; letter-spacing: -0.02em; transition: 0.2s; }
         .main-title:hover { background: var(--surface-2); border: 1px dashed var(--line-strong); }
         
         .layout-combined { display: flex; border-radius: var(--radius-sm, 8px); overflow: hidden; box-shadow: var(--sh-1); border: var(--bd-w, 1px) solid var(--line-strong); width: 100%; box-sizing: border-box; transition: all 0.3s ease;}
-        .layout-btn { background: var(--accent); color: var(--accent-tx); padding: 10px 14px; font-weight: bold; cursor: pointer; font-size: 13px; white-space: nowrap; transition: background 0.2s;}
-        .layout-status { background: var(--surface-2); color: var(--text-sub); padding: 10px 14px; font-weight: bold; font-size: 13px; flex-grow: 1; text-align: center; border-left: var(--bd-w, 1px) solid var(--line-strong); white-space: nowrap; transition: 0.2s;}
+        .layout-btn { background: var(--accent); color: var(--accent-tx); padding: 7px 11px; font-weight: bold; cursor: pointer; font-size: 12px; white-space: nowrap; transition: background 0.2s;}
+        .layout-status { background: var(--surface-2); color: var(--text-sub); padding: 7px 11px; font-weight: bold; font-size: 12px; flex-grow: 1; text-align: center; border-left: var(--bd-w, 1px) solid var(--line-strong); white-space: nowrap; transition: 0.2s;}
         .layout-status.text-active { background: var(--accent-soft); color: var(--accent); }
 
-        .file-label, .action-btn { display: inline-block; padding: 10px 14px; border-radius: var(--radius-sm, 8px); font-weight: 800; font-size: 13px; cursor: pointer; text-align: center; border: none; font-family: inherit; box-shadow: var(--sh-1); transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); letter-spacing: -0.01em;}
+        .file-label, .action-btn { display: inline-block; padding: 6px 9px; border-radius: var(--radius-sm, 8px); font-weight: 800; font-size: 12px; cursor: pointer; text-align: center; border: none; font-family: inherit; box-shadow: var(--sh-1); transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1); letter-spacing: -0.01em;}
         .file-label:active, .action-btn:active { transform: var(--btn-active-transform, scale(0.96)); box-shadow: var(--btn-active-shadow, 0 1px 2px rgba(0,0,0,0.05)); }
         
         .action-btn.bg-success, .file-label.bg-success { background: var(--tn-green-bg); color: var(--tn-green-tx); border: var(--bd-w, 1.5px) solid var(--tn-green-bd); }
         .action-btn.bg-warning, .file-label.bg-warning { background: var(--tn-amber-bg); color: var(--tn-amber-tx); border: var(--bd-w, 1.5px) solid var(--tn-amber-bd); }
         .action-btn.bg-teal,    .file-label.bg-teal    { background: var(--tn-teal-bg);  color: var(--tn-teal-tx);  border: var(--bd-w, 1.5px) solid var(--tn-teal-bd); }
         .action-btn.bg-purple,  .file-label.bg-purple,
+        .action-btn.bg-settings { background: var(--surface-2); color: var(--text); border: var(--bd-w, 1.5px) solid var(--line-strong); }
         .action-btn.bg-memo { background: var(--tn-violet-bg); color: var(--tn-violet-tx); border: var(--bd-w, 1.5px) solid var(--tn-violet-bd); }
         .action-btn.bg-kakao { background:#FEE500; color:#3b1e1e; border: var(--bd-w, 1.5px) solid #e6ce00; }
         
@@ -81,21 +83,21 @@
         .bg-danger-pulse { background-color: #e74c3c; color: white; animation: pulseAlert 2s infinite; border: var(--bd-w, 1.5px) solid #c0392b; }
 
         input[type="file"] { display: none; }
-        .status-info { font-size: 12px; font-weight: bold; color: var(--text-sub); background: var(--surface-2); padding: 8px 12px; border-radius: var(--radius-sm, 6px); text-align: center; border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
+        .status-info { font-size: 11px; font-weight: 900; color: var(--accent); background: var(--accent-soft); padding: 4px 9px; border-radius: var(--radius, 999px); text-align: center; border: 1px solid var(--accent); transition: 0.3s; white-space:nowrap;}
         
         .tabs { display: flex; gap: 4px; background: var(--surface-2); padding: 4px; border-radius: var(--radius-sm, 10px); border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
-        .tab-btn { padding: 8px 16px; border: none; background: transparent; border-radius: var(--radius-sm, 6px); cursor: pointer; font-weight: 800; font-size: 13px; color: var(--text-sub); transition: 0.2s;}
+        .tab-btn { padding: 5px 10px; border: none; background: transparent; border-radius: var(--radius-sm, 6px); cursor: pointer; font-weight: 800; font-size: 12px; color: var(--text-sub); transition: 0.2s;}
         .tab-btn.active { background: var(--surface); color: var(--accent); box-shadow: var(--sh-1); }
-        .stat-item { display: flex; align-items: center; gap: 4px; background: var(--surface-2); border: var(--bd-w, 1px) solid var(--line); padding: 6px 12px; border-radius: var(--radius, 999px); color: var(--text); transition: 0.3s;}
+        .stat-item { display: flex; align-items: center; gap: 2px; background: var(--surface-2); border: var(--bd-w, 1px) solid var(--line); padding: 3px 7px; border-radius: var(--radius, 999px); color: var(--text); transition: 0.3s;}
         
         /* 좌석 그리드 */
         #grid-board { 
             flex: 1; 
             min-height: 0; 
             display: grid; 
-            gap: var(--grid-gap, 6px); 
+            gap: var(--grid-gap, 5px); 
             background: var(--surface); 
-            padding: 10px; 
+            padding: 7px; 
             border-radius: var(--radius); 
             box-shadow: var(--sh-1); 
             border: var(--bd-w, 1px) solid var(--line);
@@ -109,7 +111,7 @@
             background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
             border: var(--bd-w-strong, 1.5px) solid var(--line-strong); 
             border-radius: var(--seat-r); 
-            padding: 3px 2px; 
+            padding: 3px 2px 3px 16px; 
             text-align: center; 
             cursor: pointer; 
             display: flex; 
@@ -152,14 +154,30 @@
             transition: 0.2s;
         }
         
-        .memo-indicator { position: absolute; top: 4px; right: 4px; background-color: var(--out-bar); color: #ffffff; font-size: 9px; font-weight: 900; padding: 3px 5px; border-radius: 5px; display: none; z-index: 5; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .memo-indicator {
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 14px;
+            background-color: var(--out-bar);
+            color: #ffffff;
+            font-size: 8px;
+            font-weight: 900;
+            display: none;
+            z-index: 5;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 1px;
+            border-radius: var(--seat-r, 9px) 0 0 var(--seat-r, 9px);
+        }
         .seat-box.manual-override { box-shadow: inset 0 0 0 2px var(--out-bar), var(--sh-1) !important; }
         
         .passage { height: 100%; box-sizing: border-box; } 
         .empty-seat { background: transparent; border: var(--bd-w-strong, 2px) dashed var(--line-strong); border-radius: var(--seat-r); display: flex; align-items: center; justify-content: center; font-size: 11.5px; color: var(--text-sub); font-weight: 900; height: 100%; box-sizing: border-box; opacity: 0.6; }
         .facility { display: flex; align-items: center; justify-content: center; background: var(--surface-2); font-weight: 900; border-radius: var(--seat-r); font-size: 12.5px; color: var(--text-sub); border: var(--bd-w-strong, 1.5px) dashed var(--line-strong); height: 100%; box-sizing: border-box; box-shadow: inset 0 1px 3px rgba(0,0,0,0.02); }
         
-        .daily-memo-container { flex: 0 0 auto; background: var(--surface); padding: 12px 20px; border-radius: var(--radius); box-shadow: var(--sh-1); margin-top: 8px; display: flex; flex-direction: column; gap: 6px; border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
+        .daily-memo-container { flex: 0 0 auto; background: var(--surface); padding: 7px 14px; border-radius: var(--radius); box-shadow: var(--sh-1); margin-top: 8px; display: flex; flex-direction: column; gap: 6px; border: var(--bd-w, 1px) solid var(--line); transition: 0.3s;}
         .daily-memo-header { font-size: 13.5px; font-weight: 900; color: var(--text); }
         #daily-memo { width: 100%; height: 60px; border: var(--bd-w-strong, 1.5px) solid var(--line-strong); border-radius: var(--radius-sm, 8px); padding: 10px; font-size: 14.5px; font-weight: 500; font-family: inherit; resize: none; box-sizing: border-box; background: var(--surface-2); color: var(--text); line-height: 1.5; transition: 0.2s;}
         #daily-memo:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -506,25 +524,24 @@
     <div id="app-container">
         <div class="header-container">
             <div class="header-left">
-                <div class="layout-combined">
+                <div class="layout-combined" style="display:none;">
                     <label class="layout-btn" for="input-layout">🔄 배치도</label>
                     <input type="file" id="input-layout" accept=".xlsx, .xls">
                     <div id="info-layout" class="layout-status">미로드</div>
                 </div>
-                <button class="action-btn bg-purple" style="width: 100%; padding: 8px 10px; font-size: 13px; box-sizing: border-box;" onclick="exportAttendance()">📤 3교시 출결 내보내기</button>
+                <button class="action-btn bg-settings" onclick="openSettings()">⚙️ 설정</button>
+                <label class="file-label bg-success" for="input-status" id="label-status" style="display:none;">📊 출석연동</label>
+                <input type="file" id="input-status" accept=".xlsx, .xls, .csv" onclick="this.value=null;">
             </div>
             
-            <div class="header-center" title="타이틀을 터치하여 변경">
-                <h1 id="main-title" class="main-title" onclick="openTitleModal()">태하관 자습실 ✏️</h1>
+            <div class="header-center">
+                <h1 id="main-title" class="main-title" onclick="openTitleModal()" style="font-size:18px;font-weight:900;margin:0;padding:4px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;border:1px dashed transparent;">태하관 자습실 ✏️</h1>
             </div>
             
             <div class="header-right">
                 <button id="btn-return-today" class="action-btn bg-danger-pulse" style="display:none;" onclick="returnToToday()">🔙 오늘(현재)로 복귀</button>
                 
-                <label class="file-label bg-success" for="input-status" id="label-status" style="display:none;">📊 당일출석부연동</label>
-                <input type="file" id="input-status" accept=".xlsx, .xls, .csv" onclick="this.value=null;">
                 
-                <div id="info-status" class="status-info" style="display:none;">출석부미로드</div>
                 
                 <div class="tabs">
                     <button class="tab-btn active" onclick="switchPeriod(1)">1교시</button>
@@ -534,11 +551,12 @@
                 
                 <button class="action-btn bg-teal" onclick="toggleFullScreen()">⛶ 전체화면</button>
                 <button class="action-btn bg-memo" onclick="openMemoModal()">📝 메모</button>
-                <button class="action-btn bg-warning" id="btn-history" style="display:none;" onclick="openHistoryModal()">🗓️ 과거 기록</button>
+                <button class="action-btn bg-warning" id="btn-history" style="display:none;" onclick="openHistoryModal()"></button>
             </div>
         </div>
 
         <div class="stats-bar" id="stats-panel" style="display:none;">
+            <div id="info-status" class="stat-item" style="display:none; color:var(--accent); font-size:11px; font-weight:900; white-space:nowrap;">출석연동</div>
             <div class="stat-item">📋 총원: <span id="stat-total">0</span></div>
             <div class="stat-item">🟢 자습: <span id="stat-normal">0</span></div>
             <div class="stat-item">🔴 결/외/조/퇴: <span id="stat-out">0</span></div>
@@ -566,7 +584,7 @@
     <div id="smart-export-modal" class="modal-overlay">
         <div class="modal-box">
             <div class="modal-header">
-                <span style="color:var(--accent);">📤 3교시 출결 내보내기</span>
+                <span style="color:var(--accent);">📤 출결 내보내기</span>
             </div>
             <div class="modal-body">
                 <p style="font-size:12px; color:var(--text-sub); margin-bottom:8px; margin-top:0;">카톡방에 바로 보고하실 수 있는 <b>명단 요약 텍스트</b>입니다.</p>
@@ -972,7 +990,7 @@
             
             hasLayout = true;
             document.getElementById('info-status').style.display = 'inline-block';
-            document.getElementById('btn-history').style.display = 'inline-block';
+            /* btn-history는 설정 메뉴로 이동 */
             document.getElementById('stats-panel').style.display = 'flex';
             document.getElementById('memo-container').style.display = 'flex'; 
             
@@ -1825,6 +1843,301 @@
         }
         (function(){ const t = localStorage.getItem('studyTheme'); if(t) setTheme(t); })();
         
-    </script>
+    
+        // =========================================================
+        // [v1.7] 백업 시스템 (기숙사관리일지 v1_2 방식 이식)
+        //  · JSON 전체 백업/복원  · 구글 드라이브 자동 백업  · 엑셀 내보내기
+        //  자습실의 모든 localStorage 키를 통째로 저장 → 2실(A/B) 구조도 자동 포함
+        // =========================================================
+        const STUDY_BACKUP_KEYS = [
+            'smartAttendanceHistory','smartAttendanceHistory_A','smartAttendanceHistory_B',
+            'smartLayoutDB','smartLayoutFileName',
+            'smartLayoutDB_A','smartLayoutFileName_A','smartLayoutDB_B','smartLayoutFileName_B',
+            'quickMemos','quickMemos_A','quickMemos_B',
+            'customRoomTitle','customRoomTitle_A','customRoomTitle_B',
+            'studyTheme','lastAutoClearTimestamp','studyDriveCfg'
+        ];
+        function studyBackupTitle(){
+            return (localStorage.getItem('customRoomTitle')
+                || localStorage.getItem('customRoomTitle_A')
+                || (document.getElementById('main-title') ? document.getElementById('main-title').innerText.replace(' ✏️','').trim() : '')
+                || '자습실출석부').trim();
+        }
+        if(typeof todayStr!=='function'){ var todayStr=function(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}; }
+        if(typeof nowStamp!=='function'){ var nowStamp=function(){const d=new Date();return d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+"_"+String(d.getHours()).padStart(2,"0")+String(d.getMinutes()).padStart(2,"0");}; }
+        function bkEsc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+        function backupToast(msg){
+            let t=document.getElementById('backup-toast');
+            if(!t){t=document.createElement('div');t.id='backup-toast';
+                t.style.cssText='position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:#1d2433;color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:bold;z-index:9999;box-shadow:0 6px 20px rgba(0,0,0,.3);max-width:90%;text-align:center;';
+                document.body.appendChild(t);}
+            t.textContent=msg; t.style.display='block';
+            clearTimeout(t._tm); t._tm=setTimeout(()=>{t.style.display='none';},2600);
+        }
+
+        function buildStudyBackup(){
+            const store={};
+            STUDY_BACKUP_KEYS.forEach(k=>{ const v=localStorage.getItem(k); if(v!==null) store[k]=v; });
+            return { _app:'studyRoomAttendance', _ver:1, title:studyBackupTitle(),
+                     exportedAt:new Date().toISOString(), store };
+        }
+        function countStudyDays(){
+            let days=0;
+            ['smartAttendanceHistory','smartAttendanceHistory_A','smartAttendanceHistory_B'].forEach(k=>{
+                try{ const h=JSON.parse(localStorage.getItem(k)||'{}'); days+=Object.keys(h).length; }catch(e){}
+            });
+            return days;
+        }
+
+        // ── 1) JSON 전체 백업 내보내기 ──
+        function doStudyBackup(){
+            const payload=buildStudyBackup();
+            const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});
+            const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+            a.download=`${studyBackupTitle()}_백업_${nowStamp()}.json`; a.click();
+            URL.revokeObjectURL(a.href);
+            backupToast(`백업 완료 (저장된 날짜 ${countStudyDays()}일)`);
+        }
+        // ── JSON 백업 복원 ──
+        function doStudyRestore(ev){
+            const f=ev.target.files[0]; if(!f)return;
+            const rd=new FileReader();
+            rd.onload=e=>{ try{
+                const d=JSON.parse(e.target.result);
+                if(!d || d._app!=='studyRoomAttendance' || !d.store){ backupToast('올바른 자습실 백업 파일이 아닙니다'); ev.target.value=''; return; }
+                let dayCnt=0;
+                try{ ['smartAttendanceHistory','smartAttendanceHistory_A','smartAttendanceHistory_B'].forEach(k=>{ if(d.store[k]){ dayCnt+=Object.keys(JSON.parse(d.store[k])).length; } }); }catch(e){}
+                if(!confirm(`이 백업으로 복원할까요?\n저장된 날짜 ${dayCnt}일 · 현재 기기 내용은 대체됩니다.`)){ ev.target.value=''; return; }
+                STUDY_BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
+                Object.keys(d.store).forEach(k=>localStorage.setItem(k, d.store[k]));
+                backupToast('복원 완료 — 화면을 새로고침합니다');
+                setTimeout(()=>location.reload(), 900);
+            }catch(err){ backupToast('복원 실패: 파일을 확인하세요'); }
+            ev.target.value=''; };
+            rd.readAsText(f);
+        }
+
+        // ── 2) 구글 드라이브 자동 백업 (기숙사관리일지 v1_2 방식) ──
+        const GDRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
+        let gTokenClient=null, gAccessToken="", gTokenExp=0, gTokenCb=null;
+        function gd(){ let c={}; try{ c=JSON.parse(localStorage.getItem('studyDriveCfg')||'{}'); }catch(e){} return c; }
+        function gdSave(c){ localStorage.setItem('studyDriveCfg', JSON.stringify(c)); }
+        function gdriveFolder(){ return studyBackupTitle()+"_백업"; }
+        function gisReady(){ return typeof google!=="undefined" && google.accounts && google.accounts.oauth2; }
+        function gInitClient(){
+            const cfg=gd(); if(!cfg.clientId){backupToast("먼저 클라이언트 ID를 입력하세요");return false;}
+            if(!gisReady()){backupToast("구글 모듈 로딩 실패(인터넷 확인)");return false;}
+            if(!gTokenClient){
+                gTokenClient=google.accounts.oauth2.initTokenClient({
+                    client_id:cfg.clientId, scope:GDRIVE_SCOPE,
+                    callback:(resp)=>{ if(resp&&resp.access_token){gAccessToken=resp.access_token; gTokenExp=Date.now()+(resp.expires_in?resp.expires_in*1000:3500000); if(gTokenCb){const cb=gTokenCb;gTokenCb=null;cb(true);}}
+                        else { if(gTokenCb){const cb=gTokenCb;gTokenCb=null;cb(false);} } },
+                    error_callback:()=>{ if(gTokenCb){const cb=gTokenCb;gTokenCb=null;cb(false);} }
+                });
+            }
+            return true;
+        }
+        function gGetToken(interactive){
+            return new Promise(res=>{
+                if(gAccessToken && Date.now()<gTokenExp-60000) return res(true);
+                if(!gInitClient()) return res(false);
+                gTokenCb=res;
+                try{ gTokenClient.requestAccessToken({prompt: interactive?"consent":""}); }
+                catch(e){ gTokenCb=null; res(false); }
+            });
+        }
+        async function gFetch(url,opts){ opts=opts||{}; opts.headers=Object.assign({Authorization:"Bearer "+gAccessToken},opts.headers||{});
+            const r=await fetch(url,opts); if(r.status===401){gAccessToken="";throw new Error("auth");} return r; }
+        async function gEnsureFolder(){
+            const cfg=gd(); const fname=gdriveFolder();
+            if(cfg.folderId && cfg.folderName===fname){
+                try{const r=await gFetch(`https://www.googleapis.com/drive/v3/files/${cfg.folderId}?fields=id,trashed`);
+                    if(r.ok){const j=await r.json(); if(j.id&&!j.trashed)return cfg.folderId;}}catch(e){}
+            }
+            const q=encodeURIComponent(`name='${fname}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+            let r=await gFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+            let j=await r.json();
+            if(j.files&&j.files.length){cfg.folderId=j.files[0].id;cfg.folderName=fname;gdSave(cfg);return cfg.folderId;}
+            r=await gFetch("https://www.googleapis.com/drive/v3/files?fields=id",{method:"POST",
+                headers:{"Content-Type":"application/json"},
+                body:JSON.stringify({name:fname,mimeType:"application/vnd.google-apps.folder"})});
+            j=await r.json(); cfg.folderId=j.id; cfg.folderName=fname; gdSave(cfg); return cfg.folderId;
+        }
+        async function gFindFile(name,folderId){
+            const q=encodeURIComponent(`name='${name}' and '${folderId}' in parents and trashed=false`);
+            const r=await gFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`);
+            const j=await r.json(); return (j.files&&j.files.length)?j.files[0]:null;
+        }
+        async function gPutFile(name,jsonStr,folderId,existingId){
+            const form=new FormData();
+            const meta=existingId?{name}:{name,parents:[folderId]};
+            form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));
+            form.append("file",new Blob([jsonStr],{type:"application/json"}));
+            const url=existingId
+                ?`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=multipart&fields=id,name`
+                :`https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name`;
+            const r=await gFetch(url,{method:existingId?"PATCH":"POST",body:form});
+            if(!r.ok)throw new Error("upload "+r.status);
+            return await r.json();
+        }
+        async function gCleanOld(folderId,keepDays){
+            try{
+                const q=encodeURIComponent(`'${folderId}' in parents and trashed=false`);
+                const r=await gFetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name,createdTime)&orderBy=createdTime`);
+                const j=await r.json(); if(!j.files)return;
+                const cutoff=Date.now()-(keepDays||30)*86400000;
+                for(const f of j.files){
+                    if(f.name==="최신.json")continue;
+                    if(new Date(f.createdTime).getTime()<cutoff){
+                        try{await gFetch(`https://www.googleapis.com/drive/v3/files/${f.id}`,{method:"DELETE"});}catch(e){}
+                    }
+                }
+            }catch(e){}
+        }
+        async function gUploadBackup(){
+            const folderId=await gEnsureFolder();
+            const jsonStr=JSON.stringify(buildStudyBackup());
+            const latest=await gFindFile("최신.json",folderId);
+            await gPutFile("최신.json",jsonStr,folderId,latest?latest.id:null);
+            const dayName=todayStr()+".json";
+            const dayFile=await gFindFile(dayName,folderId);
+            const uploaded=await gPutFile(dayName,jsonStr,folderId,dayFile?dayFile.id:null);
+            gCleanOld(folderId,gd().keepDays||30);
+            return uploaded;
+        }
+        async function driveConnect(){
+            if(!gInitClient())return;
+            backupToast("구글 연결 중...");
+            const ok=await gGetToken(true);
+            if(!ok){backupToast("구글 연결 취소/실패");return;}
+            try{ await gEnsureFolder(); renderDriveStatus(); backupToast("구글 드라이브 연결됨"); }
+            catch(e){ backupToast("폴더 준비 실패 — 권한을 확인하세요"); }
+        }
+        async function driveBackupNow(interactive){
+            const cfg=gd(); if(!cfg.clientId){backupToast("클라이언트 ID를 입력하세요");return;}
+            const ok=await gGetToken(interactive!==false);
+            if(!ok){ if(interactive!==false)backupToast("구글 인증 필요 — [구글 연결]을 먼저 눌러주세요"); return; }
+            try{ const f=await gUploadBackup(); renderDriveStatus(f.name); if(interactive!==false)backupToast("드라이브 업로드 완료: "+f.name); }
+            catch(e){ if(interactive!==false)backupToast("업로드 실패 — 연결/권한 확인"); }
+        }
+        function toggleDriveSettings(){
+            const p=document.getElementById("gd-settings-panel"); if(!p)return;
+            const show=p.style.display==="none"||!p.style.display;
+            p.style.display=show?"block":"none";
+        }
+        function saveDriveClientId(){const c=gd();c.clientId=document.getElementById("gd-clientid").value.trim();gdSave(c);gTokenClient=null;renderDriveStatus();}
+        function toggleDriveAuto(){const c=gd();c.auto=document.getElementById("gd-auto").checked;gdSave(c);renderDriveStatus();}
+        function saveDriveKeepDays(){const c=gd();c.keepDays=+document.getElementById("gd-keepdays").value||30;gdSave(c);}
+        function renderDriveStatus(lastName){
+            const cfg=gd(),el=document.getElementById("gd-status"); if(!el)return;
+            let s=cfg.clientId?"✅ 클라이언트 ID 등록됨":"❌ 클라이언트 ID 미등록";
+            s+=cfg.folderId?` · 📁 폴더 연결됨(<b>${bkEsc(cfg.folderName||gdriveFolder())}</b>)`:" · 📁 폴더 미연결";
+            s+=cfg.auto?" · 🔄 자동 ON":" · 자동 OFF";
+            s+=` · 보관 <b>${cfg.keepDays||30}일</b>`;
+            if(lastName)s+=`<br>🕒 최근 업로드: <b>${bkEsc(lastName)}</b>`;
+            el.innerHTML=s;
+            const a=document.getElementById("gd-auto"); if(a)a.checked=!!cfg.auto;
+            const c=document.getElementById("gd-clientid"); if(c&&!c.value)c.value=cfg.clientId||"";
+            const k=document.getElementById("gd-keepdays"); if(k)k.value=String(cfg.keepDays||30);
+        }
+
+        // ── 3) 엑셀 내보내기 (전체 기간 출결·특이사항) ──
+        function exportStudyXlsx(){
+            if(typeof XLSX==="undefined"){backupToast("엑셀 모듈 로딩 실패(인터넷 필요)");return;}
+            const rows=[["날짜","구역","교시구분","학번/항목","상태/내용"]];
+            const histKeys=['smartAttendanceHistory','smartAttendanceHistory_A','smartAttendanceHistory_B'];
+            const roomLabel={ 'smartAttendanceHistory':'', 'smartAttendanceHistory_A':'A실', 'smartAttendanceHistory_B':'B실' };
+            let any=false;
+            histKeys.forEach(hk=>{
+                let hist={}; try{ hist=JSON.parse(localStorage.getItem(hk)||'{}'); }catch(e){return;}
+                Object.keys(hist).sort().forEach(dk=>{
+                    const rec=hist[dk]; const disp=(rec&&rec.displayDate)||dk;
+                    const db=(rec&&rec.db)||{};
+                    Object.keys(db).forEach(cat=>{
+                        const entries=db[cat]||{};
+                        Object.keys(entries).forEach(id=>{
+                            const v=entries[id];
+                            let detail=(v&&typeof v==='object')?(v.구분||JSON.stringify(v)):String(v);
+                            rows.push([disp, roomLabel[hk], cat, id, detail]); any=true;
+                        });
+                    });
+                    if(rec&&rec.memo){ rows.push([disp, roomLabel[hk], '특이사항', '-', rec.memo]); any=true; }
+                });
+            });
+            ['quickMemos','quickMemos_A','quickMemos_B'].forEach(mk=>{
+                let m={}; try{ m=JSON.parse(localStorage.getItem(mk)||'{}'); }catch(e){return;}
+                Object.keys(m).sort().forEach(dk=>{ if(m[dk]){ rows.push([dk, mk.includes('_A')?'A실':mk.includes('_B')?'B실':'', '빠른메모', '-', m[dk]]); any=true; } });
+            });
+            if(!any){ backupToast("내보낼 기록이 없습니다"); return; }
+            const wb=XLSX.utils.book_new();
+            const ws=XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols']=[{wch:16},{wch:6},{wch:12},{wch:14},{wch:40}];
+            XLSX.utils.book_append_sheet(wb, ws, "출결특이사항");
+            XLSX.writeFile(wb, `${studyBackupTitle()}_기록_${nowStamp()}.xlsx`);
+            backupToast("엑셀 내보내기 완료");
+        }
+
+        // ── 설정 메뉴 오버레이 (배치도·기록·백업·드라이브·엑셀 통합) ──
+        function openSettings(){
+            const layoutLoaded = (function(){ const el=document.getElementById('info-layout'); return el && /로드됨/.test(el.innerText); })();
+            const html=`
+            <div style="padding:2px;">
+              <div style="font-size:13px;font-weight:900;color:var(--spc-tx);margin:2px 0 8px;">📤 3교시 출결 내보내기</div>
+              <button class="load-btn" style="background:var(--spc-bar);margin-bottom:14px;" onclick="exportAttendance()">📤 3교시 출결 내보내기</button>
+
+              <div style="font-size:13px;font-weight:900;color:var(--accent);margin:2px 0 8px;">📐 좌석 배치도</div>
+              <div class="hint" style="font-size:12px;color:var(--text-sub);margin-bottom:8px;line-height:1.5;">현재 상태: <b style="color:${layoutLoaded?'var(--lib-tx)':'var(--out-tx)'}">${layoutLoaded?'✅ 배치도 로드됨':'❌ 미로드'}</b></div>
+              <button class="load-btn" style="margin-bottom:14px;" onclick="document.getElementById('input-layout').click()">🔄 배치도 엑셀 불러오기</button>
+
+              <div style="font-size:13px;font-weight:900;color:var(--accent);margin:6px 0 8px;">🗓️ 기록</div>
+              <button class="history-btn" style="margin-bottom:14px;" onclick="closeModal('detail-modal'); setTimeout(openHistoryModal,180);">🗓️ 과거 기록 조회 / 복원</button>
+
+              <div style="font-size:13px;font-weight:900;color:var(--lib-tx);margin:6px 0 8px;">💾 파일 백업 · 복원</div>
+              <div class="hint" style="font-size:12px;color:var(--text-sub);margin-bottom:8px;line-height:1.5;">모든 날짜 출결·배치도·메모·테마가 파일 1개(.json)로 저장됩니다. 복원은 백업 파일 하나면 전체 복구됩니다.</div>
+              <button class="load-btn" style="background:var(--lib-bar);margin-bottom:6px;" onclick="doStudyBackup()">📥 전체 백업 내보내기 (.json)</button>
+              <button class="history-btn" style="margin-bottom:14px;" onclick="document.getElementById('study-restore-file').click()">📤 백업 복원 (.json)</button>
+
+              <div style="font-size:13px;font-weight:900;color:var(--sch-tx);margin:6px 0 8px;">📊 엑셀 내보내기 (보고용)</div>
+              <button class="load-btn" style="background:var(--sch-bar);margin-bottom:14px;" onclick="exportStudyXlsx()">📊 엑셀로 내보내기 (.xlsx)</button>
+
+              <div style="font-size:13px;font-weight:900;color:var(--text);margin:6px 0 6px;">☁️ 구글 드라이브 자동 백업</div>
+              <div class="hint" id="gd-status" style="font-size:11.5px;color:var(--text-sub);margin-bottom:8px;line-height:1.6;"></div>
+              <button class="load-btn" style="background:#4285F4;margin-bottom:6px;" onclick="driveBackupNow(true)">☁️ 지금 드라이브로 백업</button>
+              <button class="history-btn" onclick="toggleDriveSettings()" style="margin-bottom:4px;">⚙️ 드라이브 연결 설정 열기 / 닫기</button>
+              <div id="gd-settings-panel" style="display:none;margin-top:4px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px;">
+                <div style="font-size:11.5px;color:var(--text-sub);line-height:1.6;margin-bottom:8px;">📁 <b>${bkEsc(studyBackupTitle())}_백업</b> 폴더에 <b>최신.json</b>(항상 최신) + <b>날짜별 1개</b>가 저장되고, 설정 일수가 지난 파일은 자동 삭제됩니다. <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent);">구글 클라이언트 ID 발급</a></div>
+                <label style="font-size:12px;font-weight:bold;color:var(--text);">OAuth 클라이언트 ID</label>
+                <input id="gd-clientid" placeholder="xxxxx.apps.googleusercontent.com" oninput="saveDriveClientId()" style="width:100%;padding:9px;border:1.5px solid var(--line-strong);border-radius:8px;margin:4px 0 10px;box-sizing:border-box;background:var(--surface);color:var(--text);">
+                <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;">
+                  <div style="flex:1;"><label style="font-size:12px;font-weight:bold;color:var(--text);">보관 일수</label>
+                    <select id="gd-keepdays" onchange="saveDriveKeepDays()" style="width:100%;padding:9px;border:1.5px solid var(--line-strong);border-radius:8px;margin-top:4px;background:var(--surface);color:var(--text);">
+                      <option value="7">7일</option><option value="14">14일</option><option value="30" selected>30일</option><option value="60">60일</option>
+                    </select></div>
+                  <button class="load-btn" style="flex:1;background:var(--lib-bar);" onclick="driveConnect()">🔗 구글 연결</button>
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);">
+                  <input type="checkbox" id="gd-auto" onchange="toggleDriveAuto()" style="width:18px;height:18px;"> 앱을 켤 때 자동으로 드라이브에 백업
+                </label>
+              </div>
+            </div>`;
+            document.getElementById('modal-title').innerText="⚙️ 설정";
+            document.getElementById('modal-body').innerHTML=html;
+            showModal('detail-modal');
+            renderDriveStatus();
+        }
+
+        // 앱 켤 때 자동 드라이브 백업 (인증·인터넷 있을 때만 조용히)
+        (function autoStudyDriveBackup(){
+            let cfg={}; try{ cfg=JSON.parse(localStorage.getItem('studyDriveCfg')||'{}'); }catch(e){}
+            if(!cfg.auto||!cfg.clientId)return;
+            let tries=0;
+            const t=setInterval(()=>{ tries++;
+                if(typeof google!=="undefined"&&google.accounts&&google.accounts.oauth2){clearInterval(t); setTimeout(()=>driveBackupNow(false),1500);}
+                else if(tries>20)clearInterval(t);
+            },500);
+        })();
+
+</script>
+    <input type="file" id="study-restore-file" accept=".json,application/json" style="display:none" onchange="doStudyRestore(event)">
 </body>
 </html>
