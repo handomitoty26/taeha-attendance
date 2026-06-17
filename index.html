@@ -14,7 +14,6 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
     <style>
         /* =========================================================
@@ -1924,13 +1923,30 @@
 
         // ── 2) 구글 드라이브 자동 백업 (기숙사관리일지 v1_2 방식) ──
         const GDRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
+        // [개선된 B안] GSI를 필요할 때 1회만 동적 로드 (앱 시작 시엔 로드 안 함 → 팝업 증상 제거)
+        let gsiPromise=null;
+        function ensureGsi(){
+            if(typeof google!=="undefined" && google.accounts && google.accounts.oauth2) return Promise.resolve(true);
+            if(gsiPromise) return gsiPromise;
+            gsiPromise=new Promise(res=>{
+                const s=document.createElement('script');
+                s.src='https://accounts.google.com/gsi/client'; s.async=true; s.defer=true;
+                s.onload=()=>{ let tries=0; const t=setInterval(()=>{ tries++;
+                    if(typeof google!=="undefined"&&google.accounts&&google.accounts.oauth2){clearInterval(t);res(true);}
+                    else if(tries>40){clearInterval(t);res(false);} },50); };
+                s.onerror=()=>res(false);
+                document.head.appendChild(s);
+            });
+            return gsiPromise;
+        }
         let gTokenClient=null, gAccessToken="", gTokenExp=0, gTokenCb=null;
         function gd(){ let c={}; try{ c=JSON.parse(localStorage.getItem('studyDriveCfg')||'{}'); }catch(e){} return c; }
         function gdSave(c){ localStorage.setItem('studyDriveCfg', JSON.stringify(c)); }
         function gdriveFolder(){ return studyBackupTitle()+"_백업"; }
         function gisReady(){ return typeof google!=="undefined" && google.accounts && google.accounts.oauth2; }
-        function gInitClient(){
+        async function gInitClient(){
             const cfg=gd(); if(!cfg.clientId){backupToast("먼저 클라이언트 ID를 입력하세요");return false;}
+            if(!gisReady()){ await ensureGsi(); }
             if(!gisReady()){backupToast("구글 모듈 로딩 실패(인터넷 확인)");return false;}
             if(!gTokenClient){
                 gTokenClient=google.accounts.oauth2.initTokenClient({
@@ -1942,13 +1958,18 @@
             }
             return true;
         }
+        function _gGetTokenAfterInit(interactive,res){
+            gTokenCb=res;
+            try{ gTokenClient.requestAccessToken({prompt: interactive?"consent":""}); }
+            catch(e){ gTokenCb=null; res(false); }
+        }
         function gGetToken(interactive){
             return new Promise(res=>{
                 if(gAccessToken && Date.now()<gTokenExp-60000) return res(true);
-                if(!gInitClient()) return res(false);
-                gTokenCb=res;
-                try{ gTokenClient.requestAccessToken({prompt: interactive?"consent":""}); }
-                catch(e){ gTokenCb=null; res(false); }
+                gInitClient().then(okInit=>{
+                    if(!okInit) return res(false);
+                    _gGetTokenAfterInit(interactive,res);
+                });
             });
         }
         async function gFetch(url,opts){ opts=opts||{}; opts.headers=Object.assign({Authorization:"Bearer "+gAccessToken},opts.headers||{});
@@ -2011,7 +2032,8 @@
             return uploaded;
         }
         async function driveConnect(){
-            if(!gInitClient())return;
+            backupToast("구글 모듈 준비 중...");
+            if(!(await gInitClient()))return;
             backupToast("구글 연결 중...");
             const ok=await gGetToken(true);
             if(!ok){backupToast("구글 연결 취소/실패");return;}
@@ -2134,12 +2156,9 @@
         // 앱 켤 때 자동 드라이브 백업 (인증·인터넷 있을 때만 조용히)
         (function autoStudyDriveBackup(){
             let cfg={}; try{ cfg=JSON.parse(localStorage.getItem('studyDriveCfg')||'{}'); }catch(e){}
-            if(!cfg.auto||!cfg.clientId)return;
-            let tries=0;
-            const t=setInterval(()=>{ tries++;
-                if(typeof google!=="undefined"&&google.accounts&&google.accounts.oauth2){clearInterval(t); setTimeout(()=>driveBackupNow(false),1500);}
-                else if(tries>20)clearInterval(t);
-            },500);
+            if(!cfg.auto||!cfg.clientId)return;  // 자동백업 OFF면 GSI 아예 로드 안 함
+            // 화면 로딩이 끝난 뒤(4초) 백그라운드로 조용히 로드 → 앱 시작 시 팝업 증상 없음
+            setTimeout(()=>{ ensureGsi().then(ok=>{ if(ok) setTimeout(()=>driveBackupNow(false),800); }); }, 4000);
         })();
 
 
@@ -2173,6 +2192,9 @@
             label.addEventListener('pointerup', cancel);
             label.addEventListener('pointerleave', cancel);
             label.addEventListener('pointercancel', cancel);
+            // 길게 누를 때 브라우저 기본 컨텍스트 메뉴(다운로드/공유/인쇄) 차단
+            label.addEventListener('contextmenu', e=>e.preventDefault());
+            label.style.webkitTouchCallout='none'; label.style.webkitUserSelect='none'; label.style.userSelect='none';
             // 길게 눌러 해제된 경우 이어지는 파일선택 클릭 차단
             label.addEventListener('click', function(e){ if(longFired){ e.preventDefault(); e.stopPropagation(); longFired=false; } }, true);
         })();
