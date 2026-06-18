@@ -1241,7 +1241,14 @@
             document.getElementById('modal-title').innerText = `${id} ${s.name}`;
             let currentStatus = document.getElementById(`tag-${id}`).innerText;
             const pKey = activePeriod === 1 ? 'p1' : (activePeriod === 2 ? 'p2' : 'p3');
-            let modalHtml = `<p><strong>현재 ${activePeriod}교시 상태 :</strong> <span style="font-weight:bold; color:var(--out-bar);">${currentStatus}</span></p>`;
+            let modalHtml = `<div style="display:flex; gap:14px; align-items:center; margin-bottom:14px;">
+                <div id="stu-photo-box" style="width:160px;height:200px;border-radius:14px;background:var(--surface-2) center/cover;border:2px solid var(--line);box-shadow:0 2px 10px rgba(0,0,0,.1);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:40px;color:var(--text-sub);overflow:hidden;">📷</div>
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:22px;font-weight:900;color:var(--text);">${s.name}</div>
+                    <div style="font-size:13px;color:var(--text-sub);margin-top:4px;">학번 ${id}</div>
+                    <div style="margin-top:10px;font-size:14px;color:var(--text);">현재 ${activePeriod}교시: <b style="color:var(--out-bar);">${currentStatus}</b></div>
+                </div>
+            </div>`;
 
             if (window.isBackupMode) {
                  modalHtml += `<hr><p style="color:var(--accent); font-size:13px;"><strong>[엑셀 백업 복원 모드]</strong><br>정보를 수정할 수 없습니다.</p>`;
@@ -1315,6 +1322,7 @@
             }
             document.getElementById('modal-body').innerHTML = modalHtml;
             showModal('detail-modal');
+            loadStuPhoto(id);
         }
 
         function applyManualEdit(id) {
@@ -1423,6 +1431,7 @@
             if(count === 0) textSummary += "부재자 없음\n";
 
             document.getElementById('export-summary-text').value = textSummary;
+            document.getElementById('smart-export-modal').style.zIndex='1100';
             showModal('smart-export-modal');
         }
 
@@ -2112,6 +2121,10 @@
               <div style="font-size:13px;font-weight:900;color:var(--spc-tx);margin:2px 0 8px;">📤 3교시 출결 내보내기</div>
               <button class="load-btn" style="background:var(--spc-bar);margin-bottom:14px;" onclick="exportAttendance()">📤 3교시 출결 내보내기</button>
 
+              <div style="font-size:13px;font-weight:900;color:var(--accent);margin:2px 0 8px;">📷 학생 사진</div>
+              <div class="hint" style="font-size:12px;color:var(--text-sub);margin-bottom:8px;line-height:1.5;">사진팩(.json)을 한 번 불러오면 학생 상세창에 사진이 표시됩니다. (이 기기에 저장되어 계속 유지)</div>
+              <button class="load-btn" style="margin-bottom:14px;" onclick="document.getElementById('photopack-file').click()">📷 사진팩(JSON) 불러오기</button>
+
               <div style="font-size:13px;font-weight:900;color:var(--accent);margin:2px 0 8px;">📐 좌석 배치도</div>
               <div class="hint" style="font-size:12px;color:var(--text-sub);margin-bottom:8px;line-height:1.5;">현재 상태: <b style="color:${layoutLoaded?'var(--lib-tx)':'var(--out-tx)'}">${layoutLoaded?'✅ 배치도 로드됨':'❌ 미로드'}</b></div>
               <button class="load-btn" style="margin-bottom:14px;" onclick="document.getElementById('input-layout').click()">🔄 배치도 엑셀 불러오기</button>
@@ -2199,7 +2212,54 @@
             label.addEventListener('click', function(e){ if(longFired){ e.preventDefault(); e.stopPropagation(); longFired=false; } }, true);
         })();
 
+
+        // =========================================================
+        // [v1.7] 학생 사진 (기숙사관리일지와 동일한 IndexedDB: dormPhotos/photos, 학번 키)
+        //  같은 기기·같은 도메인이면 일지 프로그램과 사진을 공유함
+        // =========================================================
+        let _idb=null;
+        function idb(){return new Promise((res,rej)=>{
+            if(_idb)return res(_idb);
+            const r=indexedDB.open("dormPhotos",2);
+            r.onupgradeneeded=e=>{const db=e.target.result;
+                if(!db.objectStoreNames.contains("photos"))db.createObjectStore("photos");
+                if(!db.objectStoreNames.contains("memos"))db.createObjectStore("memos");};
+            r.onsuccess=e=>{_idb=e.target.result;res(_idb);};
+            r.onerror=e=>rej(e);
+        });}
+        async function photoGet(hak){try{const db=await idb();return await new Promise((res)=>{
+            const t=db.transaction("photos","readonly").objectStore("photos").get(String(hak));
+            t.onsuccess=()=>res(t.result||null); t.onerror=()=>res(null);});}catch(e){return null;}}
+        async function photoSet(hak,data){const db=await idb();return new Promise((res)=>{
+            const t=db.transaction("photos","readwrite").objectStore("photos").put(data,String(hak));
+            t.onsuccess=()=>res(true);t.onerror=()=>res(false);});}
+        function photoToast(m){ if(typeof backupToast==='function')backupToast(m); else if(typeof showToast==='function')showToast(m); else alert(m); }
+        // 학생 상세창 사진 비동기 로드
+        function loadStuPhoto(id){
+            photoGet(id).then(data=>{ const box=document.getElementById('stu-photo-box');
+                if(box && data){ box.style.backgroundImage="url('"+data+"')"; box.style.fontSize='0'; box.innerHTML=''; }
+            }).catch(()=>{});
+        }
+        // 사진팩(JSON) 불러오기 → IndexedDB 저장
+        function importPhotoPack(ev){
+            const f=ev.target.files[0]; if(!f)return;
+            photoToast('사진팩 읽는 중...');
+            const rd=new FileReader();
+            rd.onload=async e=>{ try{
+                const pack=JSON.parse(e.target.result); const keys=Object.keys(pack); let n=0;
+                for(const hak of keys){ const v=pack[hak];
+                    if(typeof v==='string' && v.indexOf('data:image')===0){ await photoSet(hak,v); n++; } }
+                if(!n){ photoToast('등록할 사진이 없습니다 (형식 확인)'); ev.target.value=''; return; }
+                photoToast(`사진팩 ${n}명 등록 완료`);
+                // 현재 상세창이 열려 있으면 즉시 반영
+                const t=document.getElementById('modal-title'); if(t){ const m=(t.innerText||'').match(/^(\S+)/); if(m) loadStuPhoto(m[1]); }
+            }catch(err){ photoToast('사진팩(JSON)을 읽을 수 없습니다'); }
+            ev.target.value=''; };
+            rd.readAsText(f);
+        }
+
 </script>
     <input type="file" id="study-restore-file" accept=".json,application/json" style="display:none" onchange="doStudyRestore(event)">
+    <input type="file" id="photopack-file" accept=".json,application/json" style="display:none" onchange="importPhotoPack(event)">
 </body>
 </html>
