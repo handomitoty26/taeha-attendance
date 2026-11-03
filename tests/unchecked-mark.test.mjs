@@ -119,35 +119,37 @@ function screen({ store = fakeStorage(), active = true } = {}) {
   const ctx = context({ localStorage: store, document });
   run(SRC, ctx, "unchecked-mark.js");
   const header = new El("div"), tabsAnchor = header.appendChild(new El("div"));
-  const main = new El("div"), stats = main.appendChild(new El("div"));
-  const tabs = [new El("button"), new El("button"), new El("button")];
   const students = { "3101": { name: "가람", element: new El("div") }, "3102": { name: "나래", element: new El("div") } };
-  const state = { active, period: "p1", opened: [] };
+  const state = { active, period: "p1" };
   const um = ctx.UncheckedMark.create({
     storageKey: () => "studyUnchecked", date: () => "20261103", period: () => state.period, students: () => students,
-    active: () => state.active, openDetail: (id) => state.opened.push(id), tabs: () => tabs, buttonBefore: tabsAnchor, barAfter: stats,
+    active: () => state.active, buttonBefore: tabsAnchor,
   });
   um.refresh();
-  const btn = header.children[0], bar = main.children[1];
-  return { um, btn, bar, tabs, students, state, store };
+  const btn = header.children[0];
+  return { um, btn, header, students, state, store };
 }
 
-test("화면 — 모드를 켜고 좌석을 누르면 표시·띠·탭 숫자, 모드를 끄면 누름을 앱에 넘긴다", () => {
+test("화면 — 모드를 켜고 좌석을 누르면 그 좌석에만 표시(좌석판 밖 목록 없음), 다시 누르면 지움, 모드를 끄면 누름을 앱에 넘긴다", () => {
   const s = screen();
   assert.equal(s.btn.style.display, "", "동작하는 화면이면 단추가 보인다");
+  assert.equal(s.header.children.length, 2, "머리줄에는 단추 하나만 더한다");
   assert.equal(s.um.onSeatTap("3101"), false, "모드가 꺼져 있으면 앱이 상세 창을 연다");
   s.btn.click();
   assert.equal(s.um.isOn(), true);
   assert.equal(s.um.onSeatTap("3101"), true);
   assert.equal(s.students["3101"].element.getAttribute("data-um"), "1");
-  assert.equal(s.bar.style.display, "flex");
-  assert.ok(s.bar.textContent.includes("3101 가람"));
-  assert.equal(s.tabs[0].textContent, "?1");
-  s.bar.all("um-chip")[0].children[0].click();
-  assert.deepEqual(s.state.opened, ["3101"], "이름 칩 → 상세 창");
-  s.bar.all("um-ok")[0].click();
-  assert.equal(s.students["3101"].element.getAttribute("data-um"), null, "✓ → 확인 완료");
+  assert.equal(s.students["3102"].element.getAttribute("data-um"), null);
+  assert.equal(s.um.onSeatTap("3101"), true);
+  assert.equal(s.students["3101"].element.getAttribute("data-um"), null, "다시 누르면 지워진다");
   assert.deepEqual(JSON.parse(s.store.getItem("studyUnchecked")), {});
+  s.um.onSeatTap("3101");
+  s.state.period = "p2"; s.um.refresh();
+  assert.equal(s.students["3101"].element.getAttribute("data-um"), null, "교시마다 따로");
+  s.state.period = "p1"; s.um.refresh();
+  assert.equal(s.students["3101"].element.getAttribute("data-um"), "1");
+  s.um.resolve("3101", ["p1"]);
+  assert.equal(s.students["3101"].element.getAttribute("data-um"), null, "상태 저장 → 해제");
   s.state.period = "p2"; s.um.onSeatTap("3102"); s.um.resolve("3102", ["p1"]);
   assert.ok(JSON.parse(s.store.getItem("studyUnchecked"))["20261103"].p2["3102"], "다른 교시 해제는 그 교시만");
   s.um.resolve("3102", ["p2"]);
@@ -168,15 +170,13 @@ test("화면 — 저장이 안 되면 체크 모드를 끄고 누름을 앱(상�
   assert.equal(s2.um.isOn(), false);
 });
 
-test("화면 — 동작하는 화면이 아니면 단추·띠·표시를 숨기고 모드를 끈다", () => {
+test("화면 — 동작하는 화면이 아니면 단추·표시를 숨기고 모드를 끈다", () => {
   const s = screen();
   s.btn.click(); s.um.onSeatTap("3101");
   s.state.active = false;
   s.um.refresh();
   assert.equal(s.btn.style.display, "none");
-  assert.equal(s.bar.style.display, "none");
   assert.equal(s.students["3101"].element.getAttribute("data-um"), null);
-  assert.equal(s.tabs[0].textContent, "");
   assert.equal(s.um.isOn(), false);
   assert.equal(s.um.onSeatTap("3101"), false);
   s.state.active = true; s.um.refresh();

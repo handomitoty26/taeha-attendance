@@ -27,7 +27,12 @@ for (const app of APPS) {
     assert.ok(html.indexOf(m[0]) < html.indexOf("[unchecked-link:start]"), "연결 코드보다 앞");
     assert.ok(html.includes("seatTap('${id}')"), "좌석 onclick은 seatTap");
     assert.ok(!html.includes("setAttribute('onclick', `openStudentDetail("), "좌석이 상세 창을 직접 부르지 않는다");
-    assert.ok(/'studyUnchecked','studyUnchecked_A','studyUnchecked_B'/.test(html), "백업 키 목록에 미확인 키");
+    const keysSrc = html.match(/const STUDY_BACKUP_KEYS = (\[[\s\S]*?\]);/)[1].replace(/\/\/[^\n]*/g, "");
+    const keys = vm.runInNewContext(keysSrc);
+    const own = app.rooms ? ["studyUnchecked_A", "studyUnchecked_B"] : ["studyUnchecked"];
+    const other = app.rooms ? ["studyUnchecked"] : ["studyUnchecked_A", "studyUnchecked_B"];
+    for (const k of own) assert.ok(keys.includes(k), `백업 키에 이 앱의 ${k}`);
+    for (const k of other) assert.ok(!keys.includes(k), `백업 키에 다른 앱의 ${k}가 없다(같은 기기 복원이 남의 기록을 지우지 않게)`);
   });
 
   // ---------- 백업 지문 ----------
@@ -108,28 +113,34 @@ for (const app of APPS) {
   });
 
   // ---------- 업로드와 지문 기록 ----------
-  async function uploadRun({ failAt = null, idAfter = "c", folderAfter = "f_백업", tokenFor = "c" } = {}) {
+  async function uploadRun({ failAt = null, changeAfterPut = 0, idAfter = "c", folderAfter = "f_백업", tokenFor = "c" } = {}) {
     const puts = [], stamps = [];
-    let builds = 0, gdCalls = 0, folderCalls = 0;
+    let builds = 0;
     const live = { smartAttendanceHistory: "v1" };
+    const cur = { id: "c", folder: "f_백업" };
+    let ensure = 0;
     const ctx = context({
       gAccessTokenFor: tokenFor,
-      gEnsureFolder: async () => "folder1",
+      gEnsureFolder: async () => { ensure++; return "folder1"; },
       buildStudyBackup: () => { builds++; return { _app: "studyRoomAttendance", store: { ...live } }; },
       studyBackupHash: async (store) => "hash:" + store.smartAttendanceHistory,
       gFindFile: async (name) => { live.smartAttendanceHistory = "v2"; return null; }, // 올리는 도중에 기록이 바뀐다
-      gPutFile: async (name, json) => { puts.push([name, JSON.parse(json).store.smartAttendanceHistory]); if (failAt === puts.length) throw new Error("upload 500"); return { id: "x", name }; },
+      gPutFile: async (name, json) => {
+        puts.push([name, JSON.parse(json).store.smartAttendanceHistory]);
+        if (failAt === puts.length) throw new Error("upload 500");
+        if (changeAfterPut === puts.length) { cur.id = idAfter; cur.folder = folderAfter; } // 이 업로드 뒤에 설정이 바뀐다
+        return { id: "x", name };
+      },
       todayStr: () => "2026-11-03",
-      // 첫 호출(시작)은 원래 설정, 그 뒤(끝)는 바뀐 설정일 수 있다
-      gd: () => ({ clientId: gdCalls++ === 0 ? "c" : idAfter, keepDays: 30 }),
-      gdriveFolder: () => (folderCalls++ === 0 ? "f_백업" : folderAfter),
+      gd: () => ({ clientId: cur.id, keepDays: 30 }),
+      gdriveFolder: () => cur.folder,
       driveStampSave: (s) => stamps.push(s),
       gCleanOld: () => {},
     });
     run(block(html, "upload"), ctx, "upload.js");
     let err = null, out = null;
     try { out = await ctx.gUploadBackup(); } catch (e) { err = e; }
-    return { puts, stamps, builds, err, out };
+    return { puts, stamps, builds, err, out, ensure };
   }
 
   test(`${app.name}: 업로드 — 내용은 한 번만 만들고, 두 파일이 모두 올라간 뒤에만 그 내용의 지문을 남긴다`, async () => {
@@ -149,13 +160,108 @@ for (const app of APPS) {
     }
   });
 
-  test(`${app.name}: 업로드 — 그 사이 클라이언트 ID·폴더가 바뀌었거나 토큰이 다른 ID의 것이면 지문을 남기지 않는다`, async () => {
-    for (const [why, opt] of [["ID 바뀜", { idAfter: "c2" }], ["폴더 바뀜", { folderAfter: "g_백업" }], ["다른 ID의 토큰", { tokenFor: "old" }]]) {
+  test(`${app.name}: 업로드 — 그 사이 클라이언트 ID·폴더가 바뀌면 지문을 남기지 않고, 다른 ID의 토큰으로는 아예 올리지 않는다`, async () => {
+    for (const [why, opt] of [["ID 바뀜", { changeAfterPut: 2, idAfter: "c2" }], ["폴더 바뀜", { changeAfterPut: 2, folderAfter: "g_백업" }]]) {
       const r = await uploadRun(opt);
       assert.equal(r.err, null, why);
       assert.equal(r.puts.length, 2, why);
       assert.equal(r.stamps.length, 0, why);
     }
+    const r = await uploadRun({ tokenFor: "old" });
+    assert.ok(r.err, "다른 ID의 토큰이면 오류");
+    assert.equal(r.ensure, 0, "폴더 확인(만들기)도 하지 않는다");
+    assert.equal(r.puts.length, 0, "한 파일도 올리지 않는다");
+    assert.equal(r.stamps.length, 0);
+  });
+
+  // ---------- 폴더 확인 — 설정을 되돌리지 않는다 ----------
+  test(`${app.name}: 폴더 확인 — 저장할 때 최신 설정에 폴더 칸만 합치고, ID가 바뀌었으면 저장하지 않는다`, async () => {
+    for (const found of [true, false]) {
+      let cfg = { clientId: "c", auto: true, keepDays: 30 };
+      const saves = [];
+      const ctx = context({
+        gd: () => JSON.parse(JSON.stringify(cfg)),
+        gdSave: (c) => { saves.push(c); cfg = c; },
+        gdriveFolder: () => "f_백업",
+        gFetch: async (url, opts) => {
+          cfg = { ...cfg, keepDays: 60, auto: false }; // 찾는 사이 사용자가 설정을 바꾼다
+          if (opts && opts.method === "POST") return { json: async () => ({ id: "new1" }) };
+          return { ok: true, json: async () => ({ files: found ? [{ id: "old1", name: "f_백업" }] : [] }) };
+        },
+      });
+      run(block(html, "ensure-folder"), ctx, "ensure-folder.js");
+      assert.equal(await ctx.gEnsureFolder(), found ? "old1" : "new1");
+      assert.equal(saves.length, 1);
+      assert.equal(saves[0].keepDays, 60, "그 사이 바꾼 보관 일수를 되돌리지 않는다");
+      assert.equal(saves[0].auto, false, "그 사이 끈 자동 백업을 되돌리지 않는다");
+      assert.equal(saves[0].folderId, found ? "old1" : "new1");
+      assert.equal(saves[0].folderName, "f_백업");
+    }
+    let cfg = { clientId: "c" };
+    const saves = [];
+    const ctx = context({
+      gd: () => ({ ...cfg }), gdSave: (c) => saves.push(c), gdriveFolder: () => "f_백업",
+      gFetch: async () => { cfg = { clientId: "c2" }; return { ok: true, json: async () => ({ files: [{ id: "old1" }] }) }; },
+    });
+    run(block(html, "ensure-folder"), ctx, "ensure-folder.js");
+    await ctx.gEnsureFolder();
+    assert.equal(saves.length, 0, "ID가 바뀌었으면 옛 ID의 폴더를 저장하지 않는다");
+  });
+
+  // ---------- 구글 모듈 로드 시간 제한 ----------
+  test(`${app.name}: 구글 모듈 로드 — 15초 안에 안 되면 실패, 실패하면 다음에 다시 시도, 성공하면 한 번만 싣는다`, async () => {
+    const scripts = [], timers = [];
+    const ctx = context({
+      document: { createElement: () => ({}), head: { appendChild: (s) => scripts.push(s) } },
+      setTimeout: (fn) => { timers.push(fn); return timers.length; }, clearTimeout: () => {},
+      setInterval: (fn) => { const id = setInterval(fn, 1); return id; }, clearInterval: (id) => clearInterval(id),
+    });
+    run(block(html, "gsi"), ctx, "gsi.js");
+    let p = ctx.ensureGsi();
+    assert.equal(scripts.length, 1);
+    timers[0](); // 응답 없이 15초
+    assert.equal(await p, false);
+    p = ctx.ensureGsi();
+    assert.equal(scripts.length, 2, "실패 뒤에는 다시 싣는다");
+    scripts[1].onerror();
+    assert.equal(await p, false);
+    p = ctx.ensureGsi();
+    run("globalThis.google = { accounts: { oauth2: {} } };", ctx);
+    scripts[2].onload();
+    assert.equal(await p, true);
+    assert.equal(await ctx.ensureGsi(), true);
+    assert.equal(scripts.length, 3, "성공한 뒤에는 더 싣지 않는다");
+  });
+
+  // ---------- 늦게 온 옛 로그인 응답 ----------
+  test(`${app.name}: 로그인 응답 — 클라이언트 ID를 바꾼 뒤 늦게 온 옛 응답은 토큰도 콜백도 건드리지 않는다`, async () => {
+    const made = [];
+    const ctx = context({
+      gd: () => ({ clientId: "A" }), gisReady: () => true, ensureGsi: async () => true, backupToast: () => {}, GDRIVE_SCOPE: "s",
+      google: { accounts: { oauth2: { initTokenClient: (o) => { const tc = { o }; made.push(tc); return tc; } } } },
+    });
+    run(`var gTokenClient=null, gAccessToken="", gTokenExp=0, gTokenCb=null, gAccessTokenFor="";\n` + block(html, "init-client"), ctx, "init-client.js");
+    assert.equal(await ctx.gInitClient(true), true);
+    const old = made[0];
+    let called = 0;
+    run("gTokenClient = null;", ctx); // ID를 바꿈
+    ctx.gTokenCb = () => { called++; };
+    run("gTokenCb = window.gTokenCb;", ctx);
+    old.o.callback({ access_token: "tokA", expires_in: 3600 });
+    old.o.error_callback({});
+    assert.equal(run("gAccessToken", ctx), "", "옛 응답으로 토큰을 받지 않는다");
+    assert.equal(called, 0, "옛 응답이 지금 요청을 끝내지 않는다");
+    await ctx.gInitClient(true);
+    made[1].o.callback({ access_token: "tokA2", expires_in: 3600 });
+    assert.equal(run("gAccessToken", ctx), "tokA2");
+    assert.equal(run("gAccessTokenFor", ctx), "A");
+    assert.equal(called, 1, "지금 로그인 객체의 응답은 받는다");
+  });
+
+  test(`${app.name}: 토큰 — 준비 중 예외도 실패로 끝난다(작업 줄이 막히지 않게)`, async () => {
+    const ctx = context({ gd: () => ({ clientId: "c" }), gInitClient: async () => { throw new Error("x"); }, setTimeout, clearTimeout });
+    run(`var gTokenClient=null, gAccessToken="", gTokenExp=0, gTokenCb=null, gAccessTokenFor="";\n` + block(html, "token"), ctx, "token.js");
+    assert.equal(await ctx.gGetToken(false), false);
   });
 
   // ---------- 토큰 요청 ----------
@@ -239,8 +345,12 @@ for (const app of APPS) {
       driveStampClear: () => { cleared++; },
       renderDriveStatus: () => {},
     });
-    run(`var gTokenClient={}, gAccessToken="tok", gAccessTokenFor="old", gTokenExp=99;\n` + block(html, "client-id"), ctx, "client-id.js");
+    let pending = null;
+    ctx.__pending = (ok) => { pending = ok; };
+    run(`var gTokenClient={}, gAccessToken="tok", gAccessTokenFor="old", gTokenExp=99, gTokenCb=window.__pending;\n` + block(html, "client-id"), ctx, "client-id.js");
     ctx.saveDriveClientId();
+    assert.equal(pending, false, "옛 ID로 기다리던 토큰 요청은 실패로 끝난다");
+    assert.equal(run("gTokenCb", ctx), null);
     assert.equal(saved.clientId, "new-id");
     assert.equal(run("gTokenClient", ctx), null);
     assert.equal(run("gAccessToken", ctx), "");
@@ -250,10 +360,13 @@ for (const app of APPS) {
   });
 
   // ---------- 자동 백업 순서 ----------
-  async function autoRun({ cfg, hash = "h", stamp = {}, gsiOk = true, folder = "f_백업", throwIn } = {}) {
+  async function autoRun({ cfg, hash = "h", stamp = {}, gsiOk = true, folder = "f_백업", throwIn, readyState = "complete", fireLoad = true } = {}) {
     const calls = [];
     let saved = null;
+    const loads = [];
     const ctx = context({
+      document: { readyState },
+      addEventListener: (type, fn) => { if (type === "load") loads.push(fn); },
       gd: () => { if (throwIn === "gd") throw new Error("x"); return cfg; },
       buildStudyBackup: () => ({ store: { a: "1" } }),
       studyBackupHash: async () => { if (throwIn === "hash") throw new Error("x"); return hash; },
@@ -266,10 +379,24 @@ for (const app of APPS) {
       setTimeout: () => { throw new Error("타이머를 쓰지 않는다"); },
     });
     run(block(html, "auto-backup"), ctx, "auto-backup.js");
+    const before = calls.length + (saved ? 1 : 0);
+    await new Promise((r) => setImmediate(r));
+    const beforeLoad = { calls: [...calls], saved };
+    if (fireLoad) loads.forEach((fn) => fn());
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    return { calls, saved };
+    return { calls, saved, loads: loads.length, beforeLoad, before };
   }
+
+  test(`${app.name}: 자동 백업 — 화면 준비(onload, 09시 비움)가 끝난 뒤 load 때 시작한다`, async () => {
+    const r = await autoRun({ cfg: { auto: true, clientId: "c" }, readyState: "loading", stamp: { hash: "old" } });
+    assert.equal(r.loads, 1, "load에 한 번 건다");
+    assert.deepEqual(r.beforeLoad.calls, [], "load 전에는 아무것도 하지 않는다");
+    assert.deepEqual(r.calls, ["gsi", ["now", false]], "load 뒤에 비교·업로드");
+    const r2 = await autoRun({ cfg: { auto: true, clientId: "c" }, readyState: "complete", fireLoad: false, stamp: { hash: "old" } });
+    assert.equal(r2.loads, 0, "이미 다 떴으면 바로 시작");
+    assert.deepEqual(r2.calls, ["gsi", ["now", false]]);
+  });
 
   test(`${app.name}: 자동 백업 — 같은 내용이면 구글 모듈을 부르지 않고 건너뜀 시각만 남긴다`, async () => {
     const now = Date.now();
@@ -426,5 +553,5 @@ for (const app of APPS) {
 test("두 앱의 공통 부분이 같다 — 모듈 바이트·지문·자동 백업 구간", { skip: !hasSibling() && "서현관 저장소가 옆에 없음" }, () => {
   const a = read(join(REPO, "index.html")), b = read(join(SIBLING, "index.html"));
   assert.equal(read(join(SIBLING, "unchecked-mark.js")), read(join(REPO, "unchecked-mark.js")), "unchecked-mark.js");
-  for (const name of ["backup-stamp", "init-client", "token", "auto-backup", "upload", "drive-ops", "client-id"]) assert.equal(block(b, name), block(a, name), name);
+  for (const name of ["gsi", "backup-stamp", "init-client", "token", "ensure-folder", "auto-backup", "upload", "drive-ops", "client-id"]) assert.equal(block(b, name), block(a, name), name);
 });

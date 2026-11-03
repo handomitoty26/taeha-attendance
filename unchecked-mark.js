@@ -76,19 +76,8 @@
     "background:#d97706;color:#fff;font:900 11px/16px sans-serif;text-align:center;pointer-events:none}" +
     ".um-mode-btn{background:var(--surface,#fff);color:var(--text,#111);border:1.5px solid #d97706}" +
     ".um-mode-btn.um-on{background:#d97706;color:#fff;border-color:#d97706}" +
-    // 좁은 세로 화면(태블릿 화면 크기를 키운 경우 등)에서는 글자를 숨기고 ❓만 — 켜짐은 색과 아래 띠의 안내로 보인다
-    "@media (max-width:699px){.um-mode-btn .um-label{display:none}.um-mode-btn{padding-left:8px;padding-right:8px}}" +
-    ".um-tab-n{margin-left:4px;padding:0 5px;border-radius:8px;background:#d97706;color:#fff;font-size:10px;font-weight:900}" +
-    // 띠는 늘 한 줄(높이 고정) — 미확인이 많으면 이름 칩을 옆으로 밀어 본다. 좌석판이 줄어들지 않게 한다.
-    ".um-bar{display:flex;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;align-items:center;gap:6px;margin:0 10px 6px;padding:5px 12px;" +
-    "border-radius:var(--radius,10px);border:1.5px dashed #d97706;background:var(--surface,#fff);color:var(--text,#111);font-size:12px;font-weight:800;" +
-    "flex-shrink:0;scrollbar-width:none}.um-bar::-webkit-scrollbar{display:none}" +
-    ".um-bar .um-title,.um-bar .um-hint{white-space:nowrap;flex-shrink:0}" +
-    ".um-bar .um-title{color:#b45309}" +
-    ".um-chip{display:inline-flex;flex-shrink:0;align-items:center;border:1px solid #d97706;border-radius:999px;overflow:hidden;background:var(--surface-2,#fff7ed)}" +
-    ".um-chip button{border:0;background:transparent;color:var(--text,#111);font:inherit;padding:3px 9px;cursor:pointer;white-space:nowrap}" +
-    ".um-chip .um-ok{border-left:1px solid #d97706;color:#15803d;font-weight:900}" +
-    ".um-hint{color:var(--text-sub,#555);font-weight:700}";
+    // 좁은 세로 화면(태블릿 화면 크기를 키운 경우 등)에서는 글자를 숨기고 ❓만 — 켜짐은 단추 색으로 보인다
+    "@media (max-width:699px){.um-mode-btn .um-label{display:none}.um-mode-btn{padding-left:8px;padding-right:8px}}";
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -99,9 +88,8 @@
 
   /* host(앱이 넘김):
      storageKey() — 지금 자습실의 저장 키, date() — 지금 보는 날짜(YYYYMMDD), period() — 'p1'|'p2'|'p3',
-     students() — { 학번: { name, element } }, active() — 배치도가 있고 백업 복원 모드가 아니고 오늘 근무일 화면이면 true,
-     openDetail(id) — 상세 창, tabs() — 교시 탭 단추 3개, buttonBefore — 모드 단추를 넣을 자리(이 요소 앞),
-     barAfter — 미확인 띠를 넣을 자리(이 요소 뒤) */
+     students() — { 학번: { element } }, active() — 배치도가 있고 백업 복원 모드가 아니고 오늘 근무일 화면이면 true,
+     buttonBefore — 모드 단추를 넣을 자리(이 요소 앞). 미확인은 좌석 칸에만 표시한다(좌석판 밖 목록·숫자 없음, 사용자 결정). */
   function create(host) {
     var on = false;
     if (!document.getElementById("um-style")) {
@@ -115,12 +103,6 @@
     btn.addEventListener("click", function () { on = !on; refresh(); });
     host.buttonBefore.parentNode.insertBefore(btn, host.buttonBefore);
 
-    var bar = el("div", "um-bar");
-    bar.style.display = "none";
-    host.barAfter.parentNode.insertBefore(bar, host.barAfter.nextSibling);
-
-    function periodLabel(p) { return String(p).slice(1) + "교시"; }
-
     function render() {
       var active = !!host.active();
       if (!active) on = false;
@@ -133,52 +115,13 @@
       btn.appendChild(el("span", "um-label", on ? " 체크 중 (끄기)" : " 미확인"));
       btn.setAttribute("aria-label", on ? "미확인 체크 끄기" : "미확인 체크 켜기");
 
-      // 좌석 표시 — 앱이 className을 통째로 바꾸므로 data 속성으로 둔다. 배치도에 있는 학번만 센다.
+      // 좌석 표시 — 앱이 className을 통째로 바꾸므로 data 속성으로 둔다. 지금 교시·지금 배치도에 있는 학번만.
       var marked = active ? idsOf(all, date, p).filter(function (id) { return students[id]; }) : [];
       Object.keys(students).forEach(function (id) {
         var s = students[id];
         if (!s || !s.element) return;
         if (marked.indexOf(id) !== -1) s.element.setAttribute("data-um", "1");
         else s.element.removeAttribute("data-um");
-      });
-
-      // 교시 탭의 미확인 수
-      var tabs = host.tabs() || [];
-      for (var i = 0; i < tabs.length && i < PERIODS.length; i++) {
-        var old = tabs[i].querySelector(".um-tab-n");
-        if (old) old.parentNode.removeChild(old);
-        var n = active ? idsOf(all, date, PERIODS[i]).filter(function (id) { return students[id]; }).length : 0;
-        if (n) tabs[i].appendChild(el("span", "um-tab-n", "?" + n));
-      }
-
-      // 미확인 띠
-      bar.textContent = "";
-      if (!active || (!marked.length && !on)) { bar.style.display = "none"; return; }
-      bar.style.display = "flex";
-      if (!marked.length) {
-        bar.appendChild(el("span", "um-hint", "체크 모드 — 확인 안 된 학생의 좌석을 누르세요 (" + periodLabel(p) + ")"));
-        return;
-      }
-      bar.appendChild(el("span", "um-title", "❓ " + periodLabel(p) + " 미확인 " + marked.length + "명"));
-      marked.sort().forEach(function (id) {
-        var chip = el("span", "um-chip");
-        var name = el("button", "", id + " " + (students[id].name || ""));
-        name.type = "button";
-        name.title = "상세 창 열기";
-        name.addEventListener("click", function () { host.openDetail(id); });
-        var ok = el("button", "um-ok", "✓");
-        ok.type = "button";
-        ok.title = "확인 완료";
-        ok.setAttribute("aria-label", id + " 확인 완료");
-        ok.addEventListener("click", function () {
-          if (host.active()) {
-            var d = host.date(), pp = host.period();
-            update(host.storageKey(), function (a) { setMark(a, d, pp, id, false); });
-          }
-          render();
-        });
-        chip.appendChild(name); chip.appendChild(ok);
-        bar.appendChild(chip);
       });
     }
 
