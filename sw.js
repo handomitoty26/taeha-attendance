@@ -5,6 +5,7 @@ const CACHE_NAME = 'pwa-taeha-attendance-v1';
 const ASSETS = [
   './index.html',
   './manifest.json',
+  './unchecked-mark.js?v=1',
   './icons/icon-192.png',
   './icons/icon-512.png',
   'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'

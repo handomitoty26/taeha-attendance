@@ -1,0 +1,8 @@
+{
+  "name": "taeha-attendance-tests",
+  "private": true,
+  "description": "시험 전용(앱은 index.html·unchecked-mark.js 그대로 GitHub Pages로 배포 — 빌드 없음)",
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\""
+  }
+}
