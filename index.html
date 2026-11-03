@@ -2152,6 +2152,7 @@
             backupToast(`백업 완료 (저장된 날짜 ${countStudyDays()}일)`);
         }
         // ── JSON 백업 복원 ──
+        // [restore:start] 복원은 이 앱의 백업 키만 받고, 끝나면 드라이브 지문 기록을 지운다(복원 파일로 "이미 올렸다"는 기록이 들어오지 않게, 다음 켤 때 다시 올린다)
         function doStudyRestore(ev){
             const f=ev.target.files[0]; if(!f)return;
             const rd=new FileReader();
@@ -2162,13 +2163,15 @@
                 try{ ['smartAttendanceHistory','smartAttendanceHistory_A','smartAttendanceHistory_B'].forEach(k=>{ if(d.store[k]){ dayCnt+=Object.keys(JSON.parse(d.store[k])).length; } }); }catch(e){}
                 if(!confirm(`이 백업으로 복원할까요?\n저장된 날짜 ${dayCnt}일 · 현재 기기 내용은 대체됩니다.`)){ ev.target.value=''; return; }
                 STUDY_BACKUP_KEYS.forEach(k=>localStorage.removeItem(k));
-                Object.keys(d.store).forEach(k=>localStorage.setItem(k, d.store[k]));
+                Object.keys(d.store).filter(k=>STUDY_BACKUP_KEYS.includes(k)).forEach(k=>localStorage.setItem(k, d.store[k]));
+                driveStampClear();
                 backupToast('복원 완료 — 화면을 새로고침합니다');
                 setTimeout(()=>location.reload(), 900);
             }catch(err){ backupToast('복원 실패: 파일을 확인하세요'); }
             ev.target.value=''; };
             rd.readAsText(f);
         }
+        // [restore:end]
 
         // ── 2) 구글 드라이브 자동 백업 (기숙사관리일지 v1_2 방식) ──
         const GDRIVE_SCOPE="https://www.googleapis.com/auth/drive.file";
@@ -2244,7 +2247,8 @@
         function _gGetTokenAfterInit(interactive,res){
             let done=false, t=null;
             const finish=(ok)=>{ if(done)return; done=true; clearTimeout(t); if(gTokenCb===finish)gTokenCb=null; res(ok); };
-            t=setTimeout(()=>finish(false),G_TOKEN_TIMEOUT_MS);
+            // 시간 초과면 그 로그인 객체를 버린다 — 늦게 온 옛 응답이 토큰을 저장하거나 다음 요청을 끝내지 못하게(다음 요청은 새 객체로)
+            t=setTimeout(()=>{ gTokenClient=null; finish(false); },G_TOKEN_TIMEOUT_MS);
             gTokenCb=finish;
             try{ gTokenClient.requestAccessToken({prompt: interactive?"consent":""}); }
             catch(e){ finish(false); }
@@ -2334,8 +2338,15 @@
         }
         // [upload:end]
         // [drive-ops:start] 드라이브 작업(연결·백업)은 한 줄로 차례대로 — 자동·수동이 겹쳐도 토큰 응답·업로드 순서가 섞이지 않게(두 앱 같은 코드)
-        let driveQueue=Promise.resolve();
-        function driveSerial(fn){ const p=driveQueue.then(()=>fn()); driveQueue=p.catch(()=>{}); return p; }
+        let driveQueue=Promise.resolve(), driveQueued=0;
+        // waitMsg: 앞 작업이 아직 돌고 있으면 줄을 서기 전에 바로 보여 줄 안내(수동 작업만 — 누른 단추가 반응이 없어 보이지 않게)
+        function driveSerial(fn,waitMsg){
+            if(waitMsg && driveQueued>0) backupToast(waitMsg);
+            driveQueued++;
+            const p=driveQueue.then(()=>fn()).finally(()=>{ driveQueued--; });
+            driveQueue=p.catch(()=>{});
+            return p;
+        }
         function driveConnect(){ return driveSerial(async ()=>{
             backupToast("구글 모듈 준비 중...");
             if(!(await gInitClient()))return;
@@ -2344,16 +2355,16 @@
             if(!ok){backupToast("구글 연결 취소/실패");return;}
             try{ await gEnsureFolder(); renderDriveStatus(); backupToast("구글 드라이브 연결됨"); }
             catch(e){ backupToast("폴더 준비 실패 — 권한을 확인하세요"); }
-        }); }
+        }, "앞의 드라이브 작업이 끝나면 이어서 연결합니다"); }
         // interactive가 false(자동 백업)면 실패해도 토스트 없이 조용히
-        function driveBackupNow(interactive){ return driveSerial(async ()=>{
-            const loud=interactive!==false;
+        function driveBackupNow(interactive){ const loud=interactive!==false; return driveSerial(async ()=>{
             const cfg=gd(); if(!cfg.clientId){ if(loud)backupToast("클라이언트 ID를 입력하세요"); return; }
+            if(!loud && !cfg.auto) return; // 줄을 서는 사이 자동 백업이 꺼졌으면 하지 않는다
             const ok=await gGetToken(loud);
             if(!ok){ if(loud)backupToast("구글 인증 필요 — [구글 연결]을 먼저 눌러주세요"); return; }
             try{ const f=await gUploadBackup(); renderDriveStatus(f.name); if(loud)backupToast("드라이브 업로드 완료: "+f.name); }
             catch(e){ if(loud)backupToast("업로드 실패 — 연결/권한 확인"); }
-        }); }
+        }, loud ? "앞의 드라이브 작업이 끝나면 이어서 백업합니다" : null); }
         // [drive-ops:end]
         function toggleDriveSettings(){
             const p=document.getElementById("gd-settings-panel"); if(!p)return;
@@ -2478,14 +2489,20 @@
         // [v1.9] 켜자마자 실행한다(지연 없음 — 구글 창이 뜨더라도 화면 조작 전에 끝나게). 마지막으로 올린 내용과 같으면 구글 창을 열지 않고 건너뛴다.
         // 순서: 자동 ON·클라이언트 ID → 지문 비교 → 다르면 구글 모듈 로드 성공 확인 → 조용한 업로드. 실패는 모두 조용히 끝난다.
         (function autoStudyDriveBackup(){
+            // 켠 뒤 이 안에 구글 모듈이 준비되지 않으면 이번에는 건너뛴다(느린 인터넷에서 로그인 창이 늦게 떠 누르던 터치가 취소되지 않게)
+            const AUTO_WINDOW_MS=3000;
             function start(){
                 try{
                     const cfg=gd();
                     if(!cfg.auto||!cfg.clientId)return;  // 자동백업 OFF면 GSI 아예 로드 안 함
+                    const t0=Date.now();
+                    // 시작할 때의 설정 그대로일 때만 이어 간다(그 사이 자동 백업을 끄거나 클라이언트 ID를 바꾸면 멈춘다)
+                    const same=()=>{ const c=gd(); return !!c.auto && c.clientId===cfg.clientId; };
                     studyBackupHash(buildStudyBackup().store).then(hash=>{
+                        if(!same()) return;
                         const st=driveStamp(), now=Date.now();
                         if(driveCanSkip(st,hash,cfg.clientId,gdriveFolder(),now)){ st.skippedAt=now; driveStampSave(st); return; }
-                        return ensureGsi().then(ok=>{ if(ok) return driveBackupNow(false); });
+                        return ensureGsi().then(ok=>{ if(ok && same() && Date.now()-t0<=AUTO_WINDOW_MS) return driveBackupNow(false); });
                     }).catch(()=>{});
                 }catch(e){}
             }

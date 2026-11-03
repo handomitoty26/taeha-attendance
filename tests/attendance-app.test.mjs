@@ -295,15 +295,41 @@ for (const app of APPS) {
     t.timers[0]();
     assert.equal(await p, false, "시간 초과면 실패로 끝난다");
     assert.equal(t.ctx.gTokenCb, null);
+    assert.equal(run("gTokenClient", t.ctx), null, "시간 초과면 그 로그인 객체를 버린다(늦은 옛 응답이 다음 요청을 끝내지 못하게)");
     assert.doesNotThrow(() => cb(true), "늦게 온 응답은 무시");
     t = tokenCtx({ request: () => { throw new Error("popup"); } });
     assert.equal(await t.ctx.gGetToken(true), false, "요청이 예외면 실패");
   });
 
+  // ---------- 복원 ----------
+  test(`${app.name}: 복원 — 이 앱의 백업 키만 받고, 끝나면 드라이브 지문 기록을 지운다`, () => {
+    const store = fakeStorage({ studyTheme: "old" });
+    let cleared = 0, reloaded = 0;
+    const keys = run(`(${html.match(/const STUDY_BACKUP_KEYS = (\[[\s\S]*?\]);/)[1].replace(/\/\/[^\n]*/g, "")})`, context());
+    const own = app.rooms ? "studyUnchecked_A" : "studyUnchecked";
+    const file = { _app: "studyRoomAttendance", store: { studyTheme: "new", [own]: "{}", "studyDriveStamp:/taeha-attendance": '{"hash":"x","uploadedAt":1}', 남의키: "x" } };
+    const ctx = context({
+      localStorage: store,
+      FileReader: class { readAsText() { this.onload({ target: { result: JSON.stringify(file) } }); } },
+      confirm: () => true, backupToast: () => {}, driveStampClear: () => { cleared++; },
+      setTimeout: (fn) => fn(), location: { reload: () => { reloaded++; } },
+    });
+    ctx.STUDY_BACKUP_KEYS_SRC = JSON.stringify(JSON.parse(JSON.stringify(keys)));
+    run(`var STUDY_BACKUP_KEYS = JSON.parse(STUDY_BACKUP_KEYS_SRC);\n` + block(html, "restore"), ctx, "restore.js");
+    const ev = { target: { files: [{}], value: "x" } };
+    ctx.doStudyRestore(ev);
+    assert.equal(store.getItem("studyTheme"), "new");
+    assert.equal(store.getItem(own), "{}");
+    assert.equal(store.getItem("studyDriveStamp:/taeha-attendance"), null, "복원 파일의 지문 기록은 받지 않는다");
+    assert.equal(store.getItem("남의키"), null, "백업 키가 아닌 것은 받지 않는다");
+    assert.equal(cleared, 1, "복원 뒤 지문 기록을 지운다(다음 켤 때 다시 올린다)");
+    assert.equal(reloaded, 1);
+  });
+
   // ---------- 드라이브 작업 줄 ----------
   test(`${app.name}: 드라이브 작업 — 자동·수동이 겹쳐도 차례대로, 자동은 설정이 없어도 조용히`, async () => {
     const log = [];
-    let cfg = { clientId: "c" };
+    let cfg = { clientId: "c", auto: true };
     const ctx = context({
       gd: () => cfg,
       gInitClient: async () => true,
@@ -315,6 +341,9 @@ for (const app of APPS) {
     });
     run(block(html, "drive-ops"), ctx, "drive-ops.js");
     const a = ctx.driveBackupNow(false), b = ctx.driveBackupNow(true), c = ctx.driveConnect();
+    // 앞 작업이 돌고 있으면 수동 작업은 줄을 서기 전에 바로 안내한다(자동은 안내 없음)
+    assert.deepEqual(log, ["toast:앞의 드라이브 작업이 끝나면 이어서 백업합니다", "toast:앞의 드라이브 작업이 끝나면 이어서 연결합니다"]);
+    log.length = 0;
     await Promise.all([a, b, c]);
     // 한 작업이 끝나야 다음 작업이 시작된다(업로드 시작·끝이 엇갈리지 않음)
     assert.deepEqual(log.filter((x) => !x.startsWith("toast:")), ["token:false", "up:start", "up:end", "token:true", "up:start", "up:end", "token:true", "folder"]);
@@ -322,13 +351,21 @@ for (const app of APPS) {
     assert.equal(log[3], "token:true");
     assert.equal(log[6], "toast:드라이브 업로드 완료: x.json");
     log.length = 0;
+    await ctx.driveBackupNow(true);
+    assert.ok(!log.some((x) => x.includes("앞의 드라이브 작업")), "줄이 비어 있으면 대기 안내 없음");
+    log.length = 0;
+    cfg = { clientId: "c", auto: false };
+    await ctx.driveBackupNow(false);
+    assert.deepEqual(log, [], "줄을 서는 사이 자동 백업이 꺼졌으면 하지 않는다");
+    cfg = { clientId: "c", auto: true };
+    log.length = 0;
     cfg = {};
     await ctx.driveBackupNow(false);
     assert.deepEqual(log, [], "자동 — 클라이언트 ID가 없어도 조용히");
     await ctx.driveBackupNow(true);
     assert.deepEqual(log, ["toast:클라이언트 ID를 입력하세요"]);
     // 앞 작업이 실패해도 줄이 막히지 않는다
-    log.length = 0; cfg = { clientId: "c" };
+    log.length = 0; cfg = { clientId: "c", auto: true };
     ctx.gUploadBackup = async () => { throw new Error("x"); };
     await ctx.driveBackupNow(false);
     ctx.gUploadBackup = async () => { log.push("again"); return { name: "y" }; };
@@ -360,21 +397,23 @@ for (const app of APPS) {
   });
 
   // ---------- 자동 백업 순서 ----------
-  async function autoRun({ cfg, hash = "h", stamp = {}, gsiOk = true, folder = "f_백업", throwIn, readyState = "complete", fireLoad = true } = {}) {
+  async function autoRun({ cfg, cfgAfter, hash = "h", stamp = {}, gsiOk = true, gsiDelay = 0, folder = "f_백업", throwIn, readyState = "complete", fireLoad = true } = {}) {
     const calls = [];
-    let saved = null;
+    let saved = null, gdCalls = 0;
     const loads = [];
+    const clk = { v: Date.now() };
     const ctx = context({
+      Date: { now: () => clk.v },
       document: { readyState },
       addEventListener: (type, fn) => { if (type === "load") loads.push(fn); },
-      gd: () => { if (throwIn === "gd") throw new Error("x"); return cfg; },
+      gd: () => { if (throwIn === "gd") throw new Error("x"); return gdCalls++ === 0 || !cfgAfter ? cfg : cfgAfter; },
       buildStudyBackup: () => ({ store: { a: "1" } }),
       studyBackupHash: async () => { if (throwIn === "hash") throw new Error("x"); return hash; },
       driveStamp: () => ({ ...stamp }),
       driveStampSave: (s) => { saved = s; },
       driveCanSkip: (st, h, c, f, now) => !!h && st.hash === h && st.clientId === c && st.folder === f && now - st.uploadedAt < 7 * 86400000,
       gdriveFolder: () => folder,
-      ensureGsi: async () => { calls.push("gsi"); return gsiOk; },
+      ensureGsi: async () => { clk.v += gsiDelay; calls.push("gsi"); return gsiOk; },
       driveBackupNow: async (i) => { calls.push(["now", i]); },
       setTimeout: () => { throw new Error("타이머를 쓰지 않는다"); },
     });
@@ -387,6 +426,18 @@ for (const app of APPS) {
     await new Promise((r) => setImmediate(r));
     return { calls, saved, loads: loads.length, beforeLoad, before };
   }
+
+  test(`${app.name}: 자동 백업 — 구글 모듈이 켠 뒤 3초 안에 준비되지 않으면 이번에는 건너뛰고, 도중에 설정이 바뀌면 멈춘다`, async () => {
+    const cfg = { auto: true, clientId: "c" };
+    let r = await autoRun({ cfg, stamp: { hash: "old" }, gsiDelay: 2900 });
+    assert.deepEqual(r.calls, ["gsi", ["now", false]], "3초 안이면 올린다");
+    r = await autoRun({ cfg, stamp: { hash: "old" }, gsiDelay: 3100 });
+    assert.deepEqual(r.calls, ["gsi"], "3초가 지나 준비되면 로그인 창을 늦게 열지 않는다");
+    r = await autoRun({ cfg, cfgAfter: { auto: false, clientId: "c" }, stamp: { hash: "old" } });
+    assert.deepEqual(r.calls, [], "지문 계산 사이 자동 백업을 끄면 멈춘다");
+    r = await autoRun({ cfg, cfgAfter: { auto: true, clientId: "c2" }, stamp: { hash: "old" } });
+    assert.deepEqual(r.calls, [], "클라이언트 ID를 바꾸면 멈춘다");
+  });
 
   test(`${app.name}: 자동 백업 — 화면 준비(onload, 09시 비움)가 끝난 뒤 load 때 시작한다`, async () => {
     const r = await autoRun({ cfg: { auto: true, clientId: "c" }, readyState: "loading", stamp: { hash: "old" } });
@@ -550,8 +601,10 @@ for (const app of APPS) {
   });
 }
 
-test("두 앱의 공통 부분이 같다 — 모듈 바이트·지문·자동 백업 구간", { skip: !hasSibling() && "서현관 저장소가 옆에 없음" }, () => {
+test("두 앱의 공통 부분이 같다 — 모듈 바이트·지문·자동 백업 구간", () => {
+  // 서현관 저장소가 없으면 건너뛰지 않고 실패한다(두 앱이 같아야 한다는 규칙을 확인하지 못한 채 통과하지 않게)
+  assert.ok(hasSibling(), `서현관 저장소(${SIBLING})가 옆에 있어야 한다 — 같은 상위 폴더에 seo-attendance를 받아 두고 시험하세요`);
   const a = read(join(REPO, "index.html")), b = read(join(SIBLING, "index.html"));
   assert.equal(read(join(SIBLING, "unchecked-mark.js")), read(join(REPO, "unchecked-mark.js")), "unchecked-mark.js");
-  for (const name of ["gsi", "backup-stamp", "init-client", "token", "ensure-folder", "auto-backup", "upload", "drive-ops", "client-id"]) assert.equal(block(b, name), block(a, name), name);
+  for (const name of ["gsi", "backup-stamp", "init-client", "token", "ensure-folder", "auto-backup", "upload", "drive-ops", "client-id", "restore"]) assert.equal(block(b, name), block(a, name), name);
 });
